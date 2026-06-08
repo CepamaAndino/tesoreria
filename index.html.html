@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tesorería CEPAMA 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --verde:#1a6b45;--verde-light:#e8f5ee;--verde-mid:#2d9464;
+  --dorado:#c89b2a;--dorado-light:#fdf6e3;
+  --rojo:#c0392b;--rojo-light:#fdecea;
+  --azul:#1a4fa0;--azul-light:#e8eef8;
+  --gris:#f4f4f2;--gris2:#e8e8e4;--gris3:#9a9a94;
+  --texto:#1c1c1a;--texto2:#5a5a54;--blanco:#fff;
+  --radio:10px;--sombra:0 2px 12px rgba(0,0,0,0.08);
+}
+body{font-family:'DM Sans',sans-serif;background:#f0f0ec;color:var(--texto);min-height:100vh;font-size:14px}
+
+/* MODAL SETUP */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--blanco);border-radius:16px;padding:28px;max-width:600px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto}
+.modal h2{font-family:'DM Serif Display',serif;font-size:21px;color:var(--verde);margin-bottom:6px}
+.modal p{color:var(--texto2);font-size:13px;line-height:1.6;margin-bottom:12px}
+.modal ol{margin-left:18px;color:var(--texto2);font-size:13px;line-height:2}
+.modal ol li strong{color:var(--texto)}
+code{background:var(--gris);padding:2px 7px;border-radius:5px;font-size:12px;font-family:monospace;color:var(--verde)}
+.url-wrap{margin:16px 0;display:flex;gap:8px}
+.url-inp{flex:1;padding:10px 13px;border:1.5px solid var(--gris2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border .2s}
+.url-inp:focus{border-color:var(--verde-mid)}
+.btn-ok{background:var(--verde);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap}
+.btn-ok:hover{background:var(--verde-mid)}.btn-ok:disabled{opacity:.6;cursor:not-allowed}
+.modal-msg{font-size:12px;margin-top:6px;min-height:18px}
+.modal-msg.ok{color:var(--verde-mid)}.modal-msg.err{color:var(--rojo)}
+.tip-box{background:var(--gris);border-radius:10px;padding:13px;margin:12px 0;font-size:12px;color:var(--texto2);line-height:1.7;border-left:3px solid var(--verde-mid)}
+
+/* HEADER */
+.header{background:var(--verde);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;background:var(--dorado);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;color:white;font-size:17px;flex-shrink:0}
+.header h1{font-family:'DM Serif Display',serif;color:white;font-size:18px;font-weight:400;line-height:1.2}
+.header h1 span{display:block;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:300;opacity:.7;letter-spacing:.05em;text-transform:uppercase;margin-top:1px}
+.saldo-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;text-align:right}
+.saldo-badge .lbl{font-size:9px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em}
+.saldo-badge .val{font-family:'DM Serif Display',serif;font-size:20px;color:white}
+
+/* SYNC BAR */
+.sync-bar{background:var(--blanco);border-bottom:1px solid var(--gris2);padding:6px 20px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gris3);flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gris3);flex-shrink:0;transition:background .3s}
+.dot.ok{background:#22c55e}.dot.sync{background:var(--dorado);animation:pulse 1s infinite}.dot.err{background:var(--rojo)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-links{margin-left:auto;display:flex;gap:12px}
+.sync-lnk{color:var(--verde-mid);font-weight:500;text-decoration:none;font-size:12px}
+.sync-lnk:hover{text-decoration:underline}
+.pending-badge{background:var(--dorado);color:white;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;display:none}
+.pending-badge.on{display:inline-block}
+.btn-cfg{background:none;border:none;cursor:pointer;font-size:12px;color:var(--gris3);padding:2px 6px;border-radius:5px}
+.btn-cfg:hover{color:var(--verde);background:var(--gris)}
+
+/* NAV */
+.nav-tabs{background:var(--blanco);border-bottom:2px solid var(--gris2);display:flex;padding:0 20px;overflow-x:auto}
+.tab{padding:11px 16px;font-size:13px;font-weight:500;color:var(--gris3);cursor:pointer;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s;background:none;font-family:'DM Sans',sans-serif}
+.tab.on{color:var(--verde);border-bottom-color:var(--verde)}
+
+/* MAIN */
+.main{padding:18px 20px;max-width:1100px;margin:0 auto}
+.pane{display:none}.pane.on{display:block}
+
+/* CARDS */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:18px}
+.card{background:var(--blanco);border-radius:var(--radio);padding:12px 14px;box-shadow:var(--sombra)}
+.c-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--gris3);margin-bottom:5px}
+.c-val{font-family:'DM Serif Display',serif;font-size:20px}
+.c-sub{font-size:11px;color:var(--gris3);margin-top:2px}
+.verde .c-val{color:var(--verde-mid)}.rojo .c-val{color:var(--rojo)}.dorado .c-val{color:var(--dorado)}.azul .c-val{color:var(--azul)}
+
+/* FORM */
+.panel{background:var(--blanco);border-radius:var(--radio);padding:18px;box-shadow:var(--sombra);margin-bottom:18px}
+.panel h2{font-family:'DM Serif Display',serif;font-size:17px;font-weight:400;margin-bottom:14px;color:var(--verde)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+label{font-size:11px;font-weight:500;color:var(--texto2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+input[type=text],input[type=date],input[type=number],select,textarea{width:100%;padding:8px 11px;border:1.5px solid var(--gris2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--texto);background:var(--gris);transition:border .2s;outline:none}
+input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:var(--verde-mid);background:white}
+textarea{resize:vertical;min-height:56px}
+
+/* TIPOS */
+.tipos{display:flex;gap:7px;flex-wrap:wrap}
+.t-btn{padding:6px 13px;border-radius:20px;border:1.5px solid var(--gris2);background:var(--gris);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;color:var(--texto2)}
+.t-btn.i{background:var(--verde-light);border-color:var(--verde-mid);color:var(--verde)}
+.t-btn.g{background:var(--rojo-light);border-color:var(--rojo);color:var(--rojo)}
+.t-btn.r{background:var(--dorado-light);border-color:var(--dorado);color:#7a5c0a}
+.t-btn.a{background:var(--azul-light);border-color:var(--azul);color:var(--azul)}
+.t-btn.tr{background:#f0e8f8;border-color:#7c3aed;color:#5b21b6}
+.t-btn.d{background:#fce8f3;border-color:#be185d;color:#9d174d}
+
+/* COMPROBANTE UPLOAD */
+.upload-zone{border:2px dashed var(--gris2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gris);position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--verde-mid);background:var(--verde-light)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone .uz-icon{font-size:28px;margin-bottom:6px}
+.upload-zone .uz-txt{font-size:13px;color:var(--texto2)}
+.upload-zone .uz-sub{font-size:11px;color:var(--gris3);margin-top:3px}
+.preview-box{margin-top:10px;display:none}
+.preview-box.on{display:flex;align-items:center;gap:10px;background:var(--blanco);border:1.5px solid var(--gris2);border-radius:8px;padding:10px 12px}
+.preview-thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.preview-thumb.pdf{display:flex;align-items:center;justify-content:center;background:var(--rojo-light);color:var(--rojo);font-size:20px;border-radius:6px;width:44px;height:44px;flex-shrink:0}
+.preview-info{flex:1;min-width:0}
+.preview-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preview-size{font-size:11px;color:var(--gris3);margin-top:2px}
+.preview-remove{background:none;border:none;cursor:pointer;color:var(--gris3);font-size:18px;padding:2px 4px;border-radius:4px;flex-shrink:0}
+.preview-remove:hover{color:var(--rojo)}
+.upload-progress{height:4px;background:var(--gris2);border-radius:4px;margin-top:8px;overflow:hidden;display:none}
+.upload-progress.on{display:block}
+.upload-bar{height:100%;background:var(--verde-mid);border-radius:4px;width:0;transition:width .3s}
+.upload-status{font-size:11px;margin-top:4px;color:var(--gris3)}
+.upload-status.ok{color:var(--verde-mid)}.upload-status.err{color:var(--rojo)}
+
+/* BOTONES */
+.btn-sec{background:var(--gris);color:var(--texto2);border:1.5px solid var(--gris2);border-radius:8px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+.btn-xl{background:var(--dorado);color:white;border:none;border-radius:8px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px}
+.btn-gs{background:#0f9d58;color:white;border:none;border-radius:8px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px}
+.row-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+
+/* TABLA */
+.t-panel{background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);overflow:hidden}
+.t-header{padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--gris2);flex-wrap:wrap}
+.t-header h2{font-family:'DM Serif Display',serif;font-size:16px;font-weight:400;color:var(--verde)}
+.filtros{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.fi{padding:6px 11px;border:1.5px solid var(--gris2);border-radius:20px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--texto);background:var(--gris);outline:none;width:120px}
+.fi:focus{border-color:var(--verde-mid);background:white}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--gris)}
+th{padding:9px 13px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gris3)}
+td{padding:9px 13px;border-bottom:1px solid var(--gris2);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9f9f7}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.bi{background:var(--verde-light);color:var(--verde)}.bg{background:var(--rojo-light);color:var(--rojo)}
+.br{background:var(--dorado-light);color:#7a5c0a}.ba{background:var(--azul-light);color:var(--azul)}
+.bt{background:#f0e8f8;color:#5b21b6}.bd{background:#fce8f3;color:#9d174d}
+.mp{color:var(--verde-mid);font-weight:600}.mn{color:var(--rojo);font-weight:600}.me{color:var(--azul);font-weight:600}
+.btn-del{background:none;border:none;cursor:pointer;color:var(--gris3);font-size:15px;padding:2px 6px;border-radius:4px}
+.btn-del:hover{color:var(--rojo)}
+.comp-link{color:var(--verde-mid);font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:3px}
+.comp-link:hover{text-decoration:underline}
+
+/* ACTIVIDADES */
+.act-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:18px}
+.act-card{background:var(--blanco);border-radius:var(--radio);padding:14px;box-shadow:var(--sombra);cursor:pointer;border:2px solid transparent;transition:all .2s}
+.act-card:hover{border-color:var(--verde-mid)}
+
+/* TOAST */
+.toast{position:fixed;top:18px;right:18px;background:var(--verde);color:white;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.2);transform:translateX(200px);opacity:0;transition:all .3s;z-index:200;max-width:320px}
+.toast.on{transform:translateX(0);opacity:1}
+.toast.err{background:var(--rojo)}.toast.warn{background:var(--dorado)}
+
+.loader{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pane.on{display:block}
+@media(max-width:620px){.fg,.fg3{grid-template-columns:1fr}.main{padding:12px}.cards{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- SETUP MODAL -->
+<div class="modal-bg" id="setup-modal">
+  <div class="modal">
+    <h2>⚙️ Conectar con Google Sheets</h2>
+    <p>Esta app guarda movimientos y comprobantes directo en tu Drive. Solo necesitas hacer esto <strong>una sola vez</strong>:</p>
+    <ol>
+      <li>Descarga el archivo <strong>tesoreria_script_v2.gs</strong> (ya lo tienes)</li>
+      <li>Abre tu <a href="https://docs.google.com/spreadsheets/d/1oP5Fo_5jZArLKnjjZkp5i5TgpYbwqHSXee7PAFfu8z8/edit" target="_blank" style="color:var(--verde-mid)">Google Sheet ↗</a></li>
+      <li>Ve a <strong>Extensiones → Apps Script</strong></li>
+      <li>Reemplaza todo el contenido con el código del archivo <code>.gs</code></li>
+      <li>Guarda con <code>Ctrl+S</code></li>
+      <li><strong>Implementar → Nueva implementación</strong></li>
+      <li>Tipo: <code>Aplicación web</code> · Ejecutar como: <code>Tú misma</code> · Acceso: <code>Cualquier usuario</code></li>
+      <li>Haz clic en <strong>Implementar</strong> y autoriza los permisos</li>
+      <li>Copia la <strong>URL de implementación</strong> y pégala aquí:</li>
+    </ol>
+    <div class="tip-box">
+      <strong>📂 Tus archivos ya están configurados:</strong><br>
+      · Sheet: <a href="https://docs.google.com/spreadsheets/d/1oP5Fo_5jZArLKnjjZkp5i5TgpYbwqHSXee7PAFfu8z8/edit" target="_blank" style="color:var(--verde-mid)">Tesorería CEPAMA 2026 ↗</a><br>
+      · Carpeta Drive: <a href="https://drive.google.com/drive/folders/1Pq2GHN6Tw-ClPDbVJ7kwcDKD-4WL-zSC" target="_blank" style="color:var(--verde-mid)">Carpeta CEPAMA ↗</a><br>
+      · Los comprobantes se guardarán en: <code>Carpeta CEPAMA / Comprobantes</code>
+    </div>
+    <div class="url-wrap">
+      <input class="url-inp" id="script-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
+      <button class="btn-ok" id="btn-con" onclick="conectar()">Conectar</button>
+    </div>
+    <p class="modal-msg" id="modal-msg"></p>
+    <button onclick="saltarSetup()" style="background:none;border:none;color:var(--gris3);font-size:12px;cursor:pointer;margin-top:10px">Usar sin Sheets por ahora →</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">C</div>
+    <h1>Tesorería CEPAMA<span>Colegio Andino Montessori · 2026</span></h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="pending-badge" id="pb">⏳ <span id="pc">0</span></span>
+    <div class="saldo-badge"><div class="lbl">Saldo actual</div><div class="val" id="saldo">$0</div></div>
+  </div>
+</div>
+
+<!-- SYNC BAR -->
+<div class="sync-bar">
+  <div class="dot" id="sdot"></div>
+  <span id="stxt">Sin configurar</span>
+  <button class="btn-cfg" onclick="document.getElementById('setup-modal').style.display='flex'">⚙️</button>
+  <div class="sync-links">
+    <a class="sync-lnk" href="https://docs.google.com/spreadsheets/d/1oP5Fo_5jZArLKnjjZkp5i5TgpYbwqHSXee7PAFfu8z8/edit" target="_blank">📊 Sheet ↗</a>
+    <a class="sync-lnk" href="https://drive.google.com/drive/folders/1Pq2GHN6Tw-ClPDbVJ7kwcDKD-4WL-zSC" target="_blank">📁 Drive ↗</a>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="nav-tabs">
+  <button class="tab on" onclick="goTab('dashboard',this)">📊 Resumen</button>
+  <button class="tab" onclick="goTab('registrar',this)">➕ Registrar</button>
+  <button class="tab" onclick="goTab('movimientos',this)">📋 Movimientos</button>
+  <button class="tab" onclick="goTab('actividades',this)">🎉 Actividades</button>
+  <button class="tab" onclick="goTab('cuentas',this)">🏦 Cuentas</button>
+</div>
+
+<div class="main">
+
+<!-- DASHBOARD -->
+<div class="pane on" id="pane-dashboard">
+  <div class="cards">
+    <div class="card verde"><div class="c-lbl">Ingresos</div><div class="c-val" id="ti">$0</div><div class="c-sub">2026</div></div>
+    <div class="card rojo"><div class="c-lbl">Gastos</div><div class="c-val" id="tg">$0</div><div class="c-sub">2026</div></div>
+    <div class="card dorado"><div class="c-lbl">Retiros</div><div class="c-val" id="tr">$0</div><div class="c-sub">2026</div></div>
+    <div class="card azul"><div class="c-lbl">Abonos</div><div class="c-val" id="ta">$0</div><div class="c-sub">Cuotas</div></div>
+    <div class="card"><div class="c-lbl">Donaciones</div><div class="c-val" id="td">$0</div><div class="c-sub">2026</div></div>
+    <div class="card"><div class="c-lbl">Movimientos</div><div class="c-val" id="tm">0</div><div class="c-sub">Total</div></div>
+  </div>
+  <div class="t-panel">
+    <div class="t-header"><h2>Últimos movimientos</h2></div>
+    <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Responsable</th><th>Descripción</th><th>Comp.</th><th>Monto</th></tr></thead>
+    <tbody id="t-rec"></tbody></table>
+  </div>
+</div>
+
+<!-- REGISTRAR -->
+<div class="pane" id="pane-registrar">
+  <div class="panel">
+    <h2>Nuevo movimiento</h2>
+
+    <!-- TIPO -->
+    <div style="margin-bottom:12px">
+      <label>Tipo de movimiento</label>
+      <div class="tipos">
+        <button class="t-btn" onclick="setTipo('ingreso',this,'i')">💰 Ingreso</button>
+        <button class="t-btn" onclick="setTipo('gasto',this,'g')">💸 Gasto</button>
+        <button class="t-btn" onclick="setTipo('retiro',this,'r')">🏧 Retiro</button>
+        <button class="t-btn" onclick="setTipo('abono',this,'a')">💳 Abono</button>
+        <button class="t-btn" onclick="setTipo('transferencia',this,'tr')">🔄 Transferencia</button>
+        <button class="t-btn" onclick="setTipo('donacion',this,'d')">🎁 Donación</button>
+      </div>
+    </div>
+
+    <!-- DATOS BÁSICOS -->
+    <div class="fg3">
+      <div><label>Fecha</label><input type="date" id="ff"></div>
+      <div><label>Monto ($)</label><input type="number" id="fm" placeholder="0" min="0"></div>
+      <div><label>Cuenta</label><select id="fcu"><option value="">— Seleccionar —</option></select></div>
+    </div>
+
+    <div class="fg" style="margin-top:10px">
+      <div>
+        <label>Actividad</label>
+        <select id="fac" onchange="toggleOtraAct()">
+          <option value="">— General —</option>
+          <option>Cuotas anuales apoderados</option>
+          <option>Bingo Andino 2026</option>
+          <option>Fiesta Costumbrista</option>
+          <option>Día del Profesor</option>
+          <option>Día del Alumno</option>
+          <option>Kermés / Feria</option>
+          <option>Completos / Wraps</option>
+          <option>Bazar / Reutiliza Andino</option>
+          <option value="_otra">Otra actividad...</option>
+        </select>
+      </div>
+      <div><label>Responsable *</label><select id="fre"><option value="">— Seleccionar —</option></select></div>
+    </div>
+
+    <div id="otra-div" style="display:none;margin-top:10px">
+      <label>Nombre de la actividad</label>
+      <input type="text" id="fotra" placeholder="Escribe el nombre...">
+    </div>
+
+    <div style="margin-top:10px">
+      <label>Descripción / Detalle</label>
+      <textarea id="fde" placeholder="Ej: Pago proveedor decoración, recaudación venta entradas..."></textarea>
+    </div>
+
+    <!-- COMPROBANTE - NUEVA SECCIÓN -->
+    <div style="margin-top:14px">
+      <label>Comprobante (foto, imagen o PDF de boleta/factura)</label>
+      <div class="upload-zone" id="upload-zone"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <input type="file" id="ffile" accept="image/*,application/pdf,.jpg,.jpeg,.png,.gif,.webp,.pdf"
+               onchange="handleFileSelect(this.files[0])">
+        <div class="uz-icon">📎</div>
+        <div class="uz-txt">Arrastra aquí o haz clic para seleccionar</div>
+        <div class="uz-sub">Foto, imagen o PDF · Máx. 10 MB</div>
+      </div>
+      <div class="preview-box" id="preview-box">
+        <div id="preview-thumb"></div>
+        <div class="preview-info">
+          <div class="preview-name" id="preview-name"></div>
+          <div class="preview-size" id="preview-size"></div>
+          <div class="upload-status" id="upload-status"></div>
+        </div>
+        <button class="preview-remove" onclick="quitarArchivo()" title="Quitar">✕</button>
+      </div>
+      <div class="upload-progress" id="upload-progress">
+        <div class="upload-bar" id="upload-bar"></div>
+      </div>
+      <!-- Campo texto manual (alternativa sin archivo) -->
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:var(--gris3)">o escribe referencia manual:</span>
+        <input type="text" id="fco" placeholder="Ej: Boleta 1234, Transferencia ref. 5678..." style="flex:1">
+      </div>
+    </div>
+
+    <div class="row-btns">
+      <button class="btn-ok" id="btn-guardar" onclick="guardar()">✓ Guardar y sincronizar</button>
+      <button class="btn-sec" onclick="limpiarForm()">Limpiar</button>
+      <span id="gtxt" style="font-size:12px;color:var(--gris3);display:none"></span>
+    </div>
+  </div>
+</div>
+
+<!-- MOVIMIENTOS -->
+<div class="pane" id="pane-movimientos">
+  <div class="t-panel">
+    <div class="t-header">
+      <h2>Todos los movimientos</h2>
+      <div class="filtros">
+        <input class="fi" type="text" placeholder="🔍 Buscar..." id="ftxt" oninput="renderTabla()">
+        <select class="fi" id="ftipo" onchange="renderTabla()">
+          <option value="">Todos</option>
+          <option>ingreso</option><option>gasto</option><option>retiro</option>
+          <option>abono</option><option>transferencia</option><option>donacion</option>
+        </select>
+        <select class="fi" id="fact" onchange="renderTabla()"><option value="">Todas</option></select>
+        <button class="btn-xl" onclick="exportarExcel()">⬇ Excel</button>
+        <button class="btn-gs" onclick="syncTodo()">🔄 Sheets</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Cuenta</th><th>Responsable</th><th>Descripción</th><th>Comprobante</th><th>Monto</th><th>☁</th><th></th></tr></thead>
+      <tbody id="t-todos"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIVIDADES -->
+<div class="pane" id="pane-actividades">
+  <div class="act-grid" id="act-grid"></div>
+  <div class="t-panel" id="act-detalle" style="display:none">
+    <div class="t-header">
+      <h2 id="act-titulo">Detalle</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:13px;color:var(--gris3)">Balance: <strong id="act-bal">$0</strong></span>
+        <button class="btn-sec" onclick="document.getElementById('act-detalle').style.display='none'">✕</button>
+      </div>
+    </div>
+    <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Responsable</th><th>Descripción</th><th>Comp.</th><th>Monto</th></tr></thead>
+    <tbody id="t-act"></tbody></table>
+  </div>
+</div>
+
+<!-- CUENTAS -->
+<div class="pane" id="pane-cuentas">
+  <div class="panel" style="max-width:480px">
+    <h2>Cuentas y directiva</h2>
+    <div style="margin-bottom:14px">
+      <label>Nueva cuenta bancaria / caja</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input type="text" id="nc" placeholder="Ej: Cuenta BancoEstado, Caja chica...">
+        <button class="btn-ok" onclick="agregarCuenta()" style="white-space:nowrap">+ Agregar</button>
+      </div>
+    </div>
+    <div id="lcuentas" style="margin-bottom:22px"></div>
+    <div style="margin-bottom:14px">
+      <label>Miembro directiva / responsable</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input type="text" id="nr" placeholder="Nombre, cargo...">
+        <button class="btn-ok" onclick="agregarResp()" style="white-space:nowrap">+ Agregar</button>
+      </div>
+    </div>
+    <div id="lresp"></div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gris2)">
+      <button class="btn-gs" onclick="saveConfigSheets()">🔄 Guardar config en Sheets</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ══════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════
+let movs    = JSON.parse(localStorage.getItem('c_mov')   ||'[]');
+let cuentas = JSON.parse(localStorage.getItem('c_cuentas')||'["Cuenta BancoEstado","Cuenta Banco Chile","Caja chica"]');
+let resps   = JSON.parse(localStorage.getItem('c_resps') ||'["Tesorera","Presidenta","Secretaria","Vice-tesorera"]');
+let SCRIPT_URL = localStorage.getItem('c_url') || '';
+let tipo = '';
+let archivoActual = null; // { file, base64, mimeType, nombre }
+let comprobanteUrlActual = ''; // URL ya subida
+const ICONOS={'Cuotas anuales apoderados':'📋','Bingo Andino 2026':'🎰','Fiesta Costumbrista':'🪆','Día del Profesor':'👩‍🏫','Día del Alumno':'🎒','Kermés / Feria':'🎠','Completos / Wraps':'🌭','Bazar / Reutiliza Andino':'♻️','General':'📁'};
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+document.getElementById('ff').value = hoy();
+actualizarSelects();
+renderDashboard(); renderTabla(); renderActs(); renderCuentasPanel();
+
+if (SCRIPT_URL) {
+  document.getElementById('setup-modal').style.display = 'none';
+  document.getElementById('script-url').value = SCRIPT_URL;
+  pingScript();
+} else {
+  setSS('', 'Sin configurar — conecta el script primero');
+}
+
+// ══════════════════════════════════════
+// MANEJO DE ARCHIVOS
+// ══════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFileSelect(f);
+}
+
+function handleFileSelect(file) {
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { toast('El archivo es muy grande (máx. 10 MB)', 'err'); return; }
+
+  const allowed = ['image/jpeg','image/png','image/gif','image/webp','application/pdf'];
+  if (!allowed.includes(file.type)) { toast('Solo se permiten imágenes o PDF', 'err'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const b64full = ev.target.result; // data:mime;base64,XXX
+    const b64 = b64full.split(',')[1];
+    archivoActual = { file, base64: b64, mimeType: file.type, nombre: file.name };
+    comprobanteUrlActual = '';
+    mostrarPreview(file, b64full);
+    setUploadStatus('', '');
+  };
+  reader.readAsDataURL(file);
+}
+
+function mostrarPreview(file, dataUrl) {
+  const box = document.getElementById('preview-box');
+  const thumb = document.getElementById('preview-thumb');
+  document.getElementById('preview-name').textContent = file.name;
+  document.getElementById('preview-size').textContent = fmtBytes(file.size);
+
+  if (file.type === 'application/pdf') {
+    thumb.outerHTML = '<div class="preview-thumb pdf" id="preview-thumb">📄</div>';
+  } else {
+    const img = document.createElement('img');
+    img.src = dataUrl; img.className = 'preview-thumb'; img.id = 'preview-thumb';
+    thumb.replaceWith(img);
+  }
+  box.classList.add('on');
+}
+
+function quitarArchivo() {
+  archivoActual = null; comprobanteUrlActual = '';
+  document.getElementById('preview-box').classList.remove('on');
+  document.getElementById('upload-progress').classList.remove('on');
+  document.getElementById('ffile').value = '';
+  setUploadStatus('', '');
+}
+
+function setUploadStatus(msg, tipo) {
+  const el = document.getElementById('upload-status');
+  el.textContent = msg;
+  el.className = 'upload-status' + (tipo ? ' '+tipo : '');
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(1) + ' MB';
+}
+
+// ══════════════════════════════════════
+// SUBIR ARCHIVO AL DRIVE VÍA SCRIPT
+// ══════════════════════════════════════
+async function subirArchivo(mov) {
+  if (!archivoActual || !SCRIPT_URL) return '';
+  setUploadStatus('Subiendo a Drive...', '');
+  document.getElementById('upload-progress').classList.add('on');
+  animarBarra();
+
+  try {
+    const r = await apiCall('uploadFile', {
+      fileName: `${mov.id}_${archivoActual.nombre}`,
+      mimeType: archivoActual.mimeType,
+      base64:   archivoActual.base64,
+      movId:    mov.id
+    });
+    document.getElementById('upload-bar').style.width = '100%';
+    if (r.ok) {
+      setUploadStatus('✓ Guardado en Drive', 'ok');
+      return r.url;
+    } else throw new Error(r.msg);
+  } catch(e) {
+    setUploadStatus('Error subiendo: ' + e.message, 'err');
+    return '';
+  }
+}
+
+function animarBarra() {
+  let p = 0;
+  const bar = document.getElementById('upload-bar');
+  const iv = setInterval(() => {
+    p = Math.min(p + Math.random()*15, 85);
+    bar.style.width = p + '%';
+    if (p >= 85) clearInterval(iv);
+  }, 200);
+}
+
+// ══════════════════════════════════════
+// GUARDAR MOVIMIENTO
+// ══════════════════════════════════════
+async function guardar() {
+  const fecha      = document.getElementById('ff').value;
+  const monto      = parseFloat(document.getElementById('fm').value);
+  const cuenta     = document.getElementById('fcu').value;
+  const actSel     = document.getElementById('fac').value;
+  const actOtra    = document.getElementById('fotra').value.trim();
+  const actividad  = actSel === '_otra' ? actOtra : actSel;
+  const responsable= document.getElementById('fre').value;
+  const descripcion= document.getElementById('fde').value.trim();
+  const compTxt    = document.getElementById('fco').value.trim();
+
+  if (!tipo)           { toast('Selecciona el tipo de movimiento', 'err'); return; }
+  if (!fecha)          { toast('Selecciona una fecha', 'err'); return; }
+  if (!monto || monto<=0) { toast('Ingresa un monto válido', 'err'); return; }
+  if (!responsable)    { toast('El responsable es obligatorio', 'err'); return; }
+
+  const btn  = document.getElementById('btn-guardar');
+  const gtxt = document.getElementById('gtxt');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span>Guardando...';
+  gtxt.style.display = 'inline'; gtxt.textContent = '';
+
+  const mov = {
+    id: Date.now(), fecha, tipo, monto, cuenta,
+    actividad: actividad || 'General',
+    responsable, descripcion,
+    comprobante: compTxt,
+    comprobanteUrl: '',
+    synced: false
+  };
+
+  // 1. Subir archivo si hay
+  if (archivoActual && SCRIPT_URL) {
+    gtxt.textContent = 'Subiendo comprobante...';
+    const url = await subirArchivo(mov);
+    mov.comprobanteUrl = url;
+    if (!compTxt && archivoActual) mov.comprobante = archivoActual.nombre;
+  }
+
+  // 2. Guardar localmente
+  movs.unshift(mov);
+  guardarLocal();
+  limpiarForm();
+  renderDashboard();
+
+  // 3. Enviar a Sheets
+  if (SCRIPT_URL) {
+    gtxt.textContent = 'Guardando en Sheets...';
+    try {
+      const r = await apiCall('append', { data: mov });
+      if (r.ok) {
+        mov.synced = true; guardarLocal();
+        setSS('ok', 'Guardado en Sheets · ' + new Date().toLocaleTimeString('es-CL'));
+        toast('✓ Guardado y sincronizado con Sheets' + (mov.comprobanteUrl ? ' + Drive' : ''));
+      } else throw new Error(r.msg);
+    } catch(e) {
+      setSS('err', 'Guardado local — reintenta después');
+      toast('Guardado local · sin conexión a Sheets', 'warn');
+    }
+  } else {
+    toast('Guardado localmente ✓ (sin Sheets)', 'warn');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '✓ Guardar y sincronizar';
+  gtxt.style.display = 'none';
+  actualizarPB();
+}
+
+function limpiarForm() {
+  tipo = '';
+  document.querySelectorAll('.t-btn').forEach(b => b.className='t-btn');
+  ['ff','fm','fcu','fac','fre','fde','fco','fotra'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('ff').value = hoy();
+  document.getElementById('otra-div').style.display = 'none';
+  quitarArchivo();
+}
+
+function toggleOtraAct() {
+  document.getElementById('otra-div').style.display =
+    document.getElementById('fac').value === '_otra' ? 'block' : 'none';
+}
+function setTipo(t, btn, cls) {
+  tipo = t;
+  document.querySelectorAll('.t-btn').forEach(b => b.className='t-btn');
+  btn.classList.add(cls);
+}
+
+// ══════════════════════════════════════
+// SETUP / CONEXIÓN
+// ══════════════════════════════════════
+async function conectar() {
+  const url = document.getElementById('script-url').value.trim();
+  if (!url.includes('script.google.com')) { setModalMsg('URL inválida — debe ser de script.google.com','err'); return; }
+  setModalMsg('Conectando...','');
+  document.getElementById('btn-con').disabled = true;
+  try {
+    const r = await apiCall('ping', {}, url);
+    if (r.ok) {
+      SCRIPT_URL = url;
+      localStorage.setItem('c_url', url);
+      document.getElementById('setup-modal').style.display = 'none';
+      setSS('ok', 'Conectado con Google Sheets ✓');
+      toast('✓ Conectado! Cargando datos...');
+      await cargarDesdeSheets();
+      await saveConfigSheets();
+    } else throw new Error(r.msg);
+  } catch(e) {
+    setModalMsg('Error: ' + e.message + ' — Verifica que el acceso sea "Cualquier usuario"', 'err');
+  }
+  document.getElementById('btn-con').disabled = false;
+}
+
+function saltarSetup() { document.getElementById('setup-modal').style.display='none'; setSS('','Solo local'); }
+function setModalMsg(msg,t){const el=document.getElementById('modal-msg');el.textContent=msg;el.className='modal-msg'+(t?' '+t:'');}
+
+async function pingScript() {
+  setSS('sync','Verificando...');
+  try { const r=await apiCall('ping'); if(r.ok) setSS('ok','Conectado · '+new Date().toLocaleTimeString('es-CL')); else throw 0; }
+  catch { setSS('err','Sin conexión — verifica el script'); }
+}
+
+// ══════════════════════════════════════
+// API
+// ══════════════════════════════════════
+async function apiCall(action, data={}, url=null) {
+  const target = url || SCRIPT_URL;
+  if (!target) throw new Error('Sin URL');
+  const r = await fetch(target, {
+    method: 'POST',
+    body: JSON.stringify({ action, ...data }),
+    headers: { 'Content-Type': 'text/plain' }
+  });
+  return JSON.parse(await r.text());
+}
+
+async function cargarDesdeSheets() {
+  setSS('sync','Cargando datos...');
+  try {
+    const r = await apiCall('getAll');
+    if (r.ok && r.data.length) { movs = r.data; guardarLocal(); }
+    const cfg = await apiCall('getConfig');
+    if (cfg.ok && cfg.data) {
+      if (cfg.data.cuentas) cuentas = cfg.data.cuentas.split(',').map(s=>s.trim()).filter(Boolean);
+      if (cfg.data.responsables) resps = cfg.data.responsables.split(',').map(s=>s.trim()).filter(Boolean);
+      guardarLocal();
+    }
+    renderDashboard(); renderTabla(); renderActs(); renderCuentasPanel(); actualizarSelects();
+    setSS('ok','Datos cargados · '+new Date().toLocaleTimeString('es-CL'));
+  } catch(e) { setSS('err','Error: '+e.message); }
+}
+
+async function syncTodo() {
+  if (!SCRIPT_URL) { toast('Configura el script primero','warn'); return; }
+  setSS('sync','Sincronizando...');
+  try {
+    const r = await apiCall('syncAll', { data: [...movs].reverse() });
+    if (r.ok) {
+      movs = movs.map(m=>({...m,synced:true})); guardarLocal(); renderTabla();
+      setSS('ok','Sincronizado · '+new Date().toLocaleTimeString('es-CL'));
+      toast('✓ Todo sincronizado en Sheets');
+    } else throw new Error(r.msg);
+  } catch(e) { setSS('err','Error: '+e.message); toast('Error sincronizando','err'); }
+}
+
+async function saveConfigSheets() {
+  if (!SCRIPT_URL) return;
+  try { await apiCall('saveConfig',{data:{cuentas:cuentas.join(','),responsables:resps.join(',')}}); toast('Config guardada ✓'); }
+  catch { toast('Error guardando config','err'); }
+}
+
+// ══════════════════════════════════════
+// ELIMINAR
+// ══════════════════════════════════════
+async function eliminar(id) {
+  if (!confirm('¿Eliminar este movimiento?')) return;
+  movs = movs.filter(m => m.id !== id);
+  guardarLocal(); renderDashboard(); renderTabla(); renderActs();
+  if (SCRIPT_URL) {
+    try { await apiCall('delete',{id}); toast('Eliminado en Sheets ✓'); }
+    catch { toast('Eliminado local · recuerda sincronizar','warn'); }
+  } else toast('Eliminado ✓');
+}
+
+// ══════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════
+function renderDashboard() {
+  let ing=0,gas=0,ret=0,abo=0,don=0;
+  movs.forEach(m=>{
+    if(m.tipo==='ingreso') ing+=m.monto; else if(m.tipo==='gasto') gas+=m.monto;
+    else if(m.tipo==='retiro') ret+=m.monto; else if(m.tipo==='abono') abo+=m.monto;
+    else if(m.tipo==='donacion') don+=m.monto;
+  });
+  const saldo=ing+abo+don-gas-ret;
+  set('ti',fmt(ing));set('tg',fmt(gas));set('tr',fmt(ret));
+  set('ta',fmt(abo));set('td',fmt(don));set('tm',movs.length);set('saldo',fmt(saldo));
+  const rec=movs.slice(0,8);
+  document.getElementById('t-rec').innerHTML=rec.length?rec.map(m=>`
+    <tr><td>${fmtF(m.fecha)}</td><td><span class="badge b${m.tipo[0]}">${m.tipo}</span></td>
+    <td style="color:var(--texto2)">${m.actividad||'—'}</td>
+    <td style="color:var(--texto2)">${m.responsable||'—'}</td>
+    <td style="color:var(--texto2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.descripcion||'—'}</td>
+    <td>${compLink(m)}</td>
+    <td class="${sc(m.tipo)}">${sg(m.tipo)}${fmt(m.monto)}</td></tr>`).join('')
+    :'<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gris3)">Sin movimientos</td></tr>';
+}
+
+// ══════════════════════════════════════
+// TABLA
+// ══════════════════════════════════════
+function renderTabla() {
+  const txt=document.getElementById('ftxt').value.toLowerCase();
+  const tp=document.getElementById('ftipo').value;
+  const ac=document.getElementById('fact').value;
+  const acts=[...new Set(movs.map(m=>m.actividad||'General'))];
+  document.getElementById('fact').innerHTML='<option value="">Todas</option>'+
+    acts.map(a=>`<option${a===ac?' selected':''}>${a}</option>`).join('');
+  const d=movs.filter(m=>(!tp||m.tipo===tp)&&(!ac||(m.actividad||'General')===ac)&&
+    (!txt||JSON.stringify(m).toLowerCase().includes(txt)));
+  document.getElementById('t-todos').innerHTML=d.length?d.map(m=>`
+    <tr><td>${fmtF(m.fecha)}</td><td><span class="badge b${m.tipo[0]}">${m.tipo}</span></td>
+    <td>${m.actividad||'General'}</td>
+    <td style="color:var(--texto2)">${m.cuenta||'—'}</td>
+    <td style="color:var(--texto2)">${m.responsable||'—'}</td>
+    <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.descripcion||'—'}</td>
+    <td>${compLink(m)}</td>
+    <td class="${sc(m.tipo)}">${sg(m.tipo)}${fmt(m.monto)}</td>
+    <td style="text-align:center" title="${m.synced?'En Sheets':'Pendiente'}">${m.synced?'☁️':'⏳'}</td>
+    <td><button class="btn-del" onclick="eliminar(${m.id})">✕</button></td></tr>`).join('')
+    :'<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--gris3)">Sin resultados</td></tr>';
+  actualizarPB();
+}
+
+function compLink(m) {
+  if (m.comprobanteUrl) return `<a class="comp-link" href="${m.comprobanteUrl}" target="_blank">📎 Ver</a>`;
+  if (m.comprobante) return `<span style="font-size:12px;color:var(--gris3)">${m.comprobante}</span>`;
+  return '<span style="color:var(--gris3);font-size:12px">—</span>';
+}
+
+// ══════════════════════════════════════
+// ACTIVIDADES
+// ══════════════════════════════════════
+function renderActs() {
+  const map={};
+  movs.forEach(m=>{const k=m.actividad||'General';if(!map[k])map[k]={ing:0,gas:0};
+    if(['ingreso','abono','donacion'].includes(m.tipo)) map[k].ing+=m.monto; else map[k].gas+=m.monto;});
+  document.getElementById('act-grid').innerHTML=Object.keys(map).length?
+    Object.entries(map).map(([k,v])=>{const bal=v.ing-v.gas;return `
+      <div class="act-card" onclick="verAct('${k}')">
+        <div style="font-size:26px;margin-bottom:5px">${ICONOS[k]||'🎉'}</div>
+        <div style="font-weight:600;font-size:13px">${k}</div>
+        <div style="font-size:12px;margin-top:3px;color:${bal>=0?'var(--verde-mid)':'var(--rojo)'}">Balance: ${bal>=0?'+':''}${fmt(bal)}</div>
+        <div style="font-size:11px;color:var(--gris3);margin-top:2px">Ingr. ${fmt(v.ing)} · Gasto ${fmt(v.gas)}</div>
+      </div>`;}).join('')
+    :'<div style="color:var(--gris3);padding:20px">Registra movimientos para ver actividades aquí</div>';
+}
+
+function verAct(act) {
+  const d=movs.filter(m=>(m.actividad||'General')===act);
+  let bal=0; d.forEach(m=>{if(['ingreso','abono','donacion'].includes(m.tipo)) bal+=m.monto; else bal-=m.monto;});
+  set('act-titulo','📁 '+act); set('act-bal',(bal>=0?'+':'')+fmt(bal));
+  document.getElementById('act-bal').style.color=bal>=0?'var(--verde-mid)':'var(--rojo)';
+  document.getElementById('t-act').innerHTML=d.map(m=>`
+    <tr><td>${fmtF(m.fecha)}</td><td><span class="badge b${m.tipo[0]}">${m.tipo}</span></td>
+    <td>${m.responsable||'—'}</td><td>${m.descripcion||'—'}</td>
+    <td>${compLink(m)}</td>
+    <td class="${sc(m.tipo)}">${sg(m.tipo)}${fmt(m.monto)}</td></tr>`).join('');
+  document.getElementById('act-detalle').style.display='block';
+  document.getElementById('act-detalle').scrollIntoView({behavior:'smooth'});
+}
+
+// ══════════════════════════════════════
+// CUENTAS
+// ══════════════════════════════════════
+function renderCuentasPanel() {
+  actualizarSelects();
+  document.getElementById('lcuentas').innerHTML=cuentas.map((c,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--gris);border-radius:8px;margin-bottom:6px;font-size:13px">
+      🏦 ${c} <button class="btn-del" onclick="elimCuenta(${i})">✕</button></div>`).join('')||
+    '<div style="color:var(--gris3);font-size:13px;padding:8px">Sin cuentas</div>';
+  document.getElementById('lresp').innerHTML=resps.map((r,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--gris);border-radius:8px;margin-bottom:6px;font-size:13px">
+      👤 ${r} <button class="btn-del" onclick="elimResp(${i})">✕</button></div>`).join('')||
+    '<div style="color:var(--gris3);font-size:13px;padding:8px">Sin responsables</div>';
+}
+function actualizarSelects(){
+  const sc=document.getElementById('fcu');const sr=document.getElementById('fre');
+  if(sc) sc.innerHTML='<option value="">— Seleccionar —</option>'+cuentas.map(c=>`<option>${c}</option>`).join('');
+  if(sr) sr.innerHTML='<option value="">— Seleccionar —</option>'+resps.map(r=>`<option>${r}</option>`).join('');
+}
+function agregarCuenta(){const v=document.getElementById('nc').value.trim();if(!v)return;cuentas.push(v);guardarLocal();document.getElementById('nc').value='';renderCuentasPanel();toast('Cuenta agregada ✓');}
+function elimCuenta(i){cuentas.splice(i,1);guardarLocal();renderCuentasPanel();}
+function agregarResp(){const v=document.getElementById('nr').value.trim();if(!v)return;resps.push(v);guardarLocal();document.getElementById('nr').value='';renderCuentasPanel();toast('Responsable agregado ✓');}
+function elimResp(i){resps.splice(i,1);guardarLocal();renderCuentasPanel();}
+
+// ══════════════════════════════════════
+// EXCEL
+// ══════════════════════════════════════
+function exportarExcel() {
+  if(!movs.length){toast('Sin movimientos','err');return}
+  const datos=movs.map(m=>({'Fecha':m.fecha,'Tipo':m.tipo,'Actividad':m.actividad||'General','Cuenta':m.cuenta||'','Responsable':m.responsable||'','Descripción':m.descripcion||'','Comprobante':m.comprobante||'','URL Comprobante':m.comprobanteUrl||'','Monto neto':sn(m.tipo)*m.monto,'Monto bruto':m.monto}));
+  const ws=XLSX.utils.json_to_sheet(datos);
+  ws['!cols']=[{wch:12},{wch:14},{wch:22},{wch:18},{wch:18},{wch:30},{wch:18},{wch:35},{wch:12},{wch:12}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,'Movimientos',ws);
+  const am={};movs.forEach(m=>{const k=m.actividad||'General';if(!am[k])am[k]={Actividad:k,Ingresos:0,Gastos:0,Balance:0};if(['ingreso','abono','donacion'].includes(m.tipo))am[k].Ingresos+=m.monto;else am[k].Gastos+=m.monto;am[k].Balance=am[k].Ingresos-am[k].Gastos;});
+  XLSX.utils.book_append_sheet(wb,'Por actividad',XLSX.utils.json_to_sheet(Object.values(am)));
+  XLSX.writeFile(wb,`Tesoreria_CEPAMA_${hoy()}.xlsx`);toast('Excel descargado ✓');
+}
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+function guardarLocal(){localStorage.setItem('c_mov',JSON.stringify(movs));localStorage.setItem('c_cuentas',JSON.stringify(cuentas));localStorage.setItem('c_resps',JSON.stringify(resps));}
+function actualizarPB(){const p=movs.filter(m=>!m.synced).length;document.getElementById('pc').textContent=p;document.getElementById('pb').className='pending-badge'+(p>0?' on':'');}
+function hoy(){return new Date().toISOString().split('T')[0]}
+function fmt(n){return '$'+Math.abs(n||0).toLocaleString('es-CL')}
+function fmtF(f){if(!f)return '—';const[y,m,d]=f.split('-');return `${d}/${m}/${y}`}
+function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
+function sc(t){return['ingreso','abono','donacion'].includes(t)?'mp':['gasto','retiro'].includes(t)?'mn':'me'}
+function sg(t){return['ingreso','abono','donacion'].includes(t)?'+':['gasto','retiro'].includes(t)?'-':''}
+function sn(t){return['ingreso','abono','donacion'].includes(t)?1:-1}
+function setSS(e,m){document.getElementById('sdot').className='dot '+(e||'');document.getElementById('stxt').textContent=m;}
+function toast(msg,t='ok'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast on'+(t==='err'?' err':t==='warn'?' warn':'');setTimeout(()=>el.classList.remove('on'),3200);}
+function goTab(id,btn){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));document.getElementById('pane-'+id).classList.add('on');if(btn)btn.classList.add('on');if(id==='movimientos')renderTabla();if(id==='actividades')renderActs();if(id==='cuentas')renderCuentasPanel();}
+</script>
+</body>
+</html>
