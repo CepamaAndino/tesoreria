@@ -120,8 +120,8 @@ textarea{resize:vertical;min-height:56px}
 
 /* BOTONES */
 .btn-sec{background:var(--gris);color:var(--texto2);border:1.5px solid var(--gris2);border-radius:8px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
-.btn-xl{background:var(--dorado);color:white;border:none;border-radius:8px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px}
-.btn-gs{background:#0f9d58;color:white;border:none;border-radius:8px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px}
+.btn-xl{background:var(--dorado);color:white;border:none;border-radius:8px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.btn-gs{background:#0f9d58;color:white;border:none;border-radius:8px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .row-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
 
 /* TABLA */
@@ -687,7 +687,15 @@ async function cargarDesdeSheets() {
   setSS('sync','Cargando datos...');
   try {
     const r = await apiCall('getAll');
-    if (r.ok && r.data.length) { movs = r.data; guardarLocal(); }
+    if (r.ok && r.data.length) {
+      // Limpiar #ERROR! que puede venir del Sheet
+      movs = r.data.map(m => ({
+        ...m,
+        comprobanteUrl: (m.comprobanteUrl && m.comprobanteUrl.startsWith('http')) ? m.comprobanteUrl : '',
+        comprobante: (m.comprobante && m.comprobante.startsWith('#')) ? '' : m.comprobante
+      }));
+      guardarLocal();
+    }
     const cfg = await apiCall('getConfig');
     if (cfg.ok && cfg.data) {
       if (cfg.data.cuentas) cuentas = cfg.data.cuentas.split(',').map(s=>s.trim()).filter(Boolean);
@@ -782,8 +790,13 @@ function renderTabla() {
 }
 
 function compLink(m) {
-  if (m.comprobanteUrl) return `<a class="comp-link" href="${m.comprobanteUrl}" target="_blank">📎 Ver</a>`;
-  if (m.comprobante) return `<span style="font-size:12px;color:var(--gris3)">${m.comprobante}</span>`;
+  const url = m.comprobanteUrl;
+  if (url && typeof url === 'string' && url.startsWith('http')) {
+    return `<a class="comp-link" href="${url}" target="_blank" rel="noopener">📎 Ver</a>`;
+  }
+  if (m.comprobante && m.comprobante !== '#ERROR!') {
+    return `<span style="font-size:12px;color:var(--gris3)">${m.comprobante}</span>`;
+  }
   return '<span style="color:var(--gris3);font-size:12px">—</span>';
 }
 
@@ -847,7 +860,8 @@ function elimResp(i){resps.splice(i,1);guardarLocal();renderCuentasPanel();}
 // EXCEL
 // ══════════════════════════════════════
 function exportarExcel() {
-  if(!movs.length){toast('Sin movimientos','err');return}
+  if(!movs.length){toast('Sin movimientos para exportar','err');return}
+  if(typeof XLSX === 'undefined'){toast('Cargando librería, intenta de nuevo','warn');return}
   const datos=movs.map(m=>({'Fecha':m.fecha,'Tipo':m.tipo,'Actividad':m.actividad||'General','Cuenta':m.cuenta||'','Responsable':m.responsable||'','Descripción':m.descripcion||'','Comprobante':m.comprobante||'','URL Comprobante':m.comprobanteUrl||'','Monto neto':sn(m.tipo)*m.monto,'Monto bruto':m.monto}));
   const ws=XLSX.utils.json_to_sheet(datos);
   ws['!cols']=[{wch:12},{wch:14},{wch:22},{wch:18},{wch:18},{wch:30},{wch:18},{wch:35},{wch:12},{wch:12}];
