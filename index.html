@@ -167,7 +167,7 @@ tr:hover td{background:#f9f9f7}
 <body>
 
 <!-- SETUP MODAL -->
-<div class="modal-bg" id="setup-modal">
+<div class="modal-bg" id="setup-modal" style="display:none">
   <div class="modal">
     <h2>⚙️ Conectar con Google Sheets</h2>
     <p>Esta app guarda movimientos y comprobantes directo en tu Drive. Solo necesitas hacer esto <strong>una sola vez</strong>:</p>
@@ -421,7 +421,7 @@ tr:hover td{background:#f9f9f7}
 let movs    = JSON.parse(localStorage.getItem('c_mov')   ||'[]');
 let cuentas = JSON.parse(localStorage.getItem('c_cuentas')||'["Cuenta BancoEstado","Cuenta Banco Chile","Caja chica"]');
 let resps   = JSON.parse(localStorage.getItem('c_resps') ||'["Tesorera","Presidenta","Secretaria","Vice-tesorera"]');
-let SCRIPT_URL = localStorage.getItem('c_url') || '';
+let SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzPIOeyU7wJU1gcaI8kYpnqHV9pR2bcs2y1ihUH2zlvUrS7NuO6k-nOQtsX6qeSM7AH_Q/exec'; // URL fija del script CEPAMA
 let tipo = '';
 let archivoActual = null; // { file, base64, mimeType, nombre }
 let comprobanteUrlActual = ''; // URL ya subida
@@ -434,13 +434,10 @@ document.getElementById('ff').value = hoy();
 actualizarSelects();
 renderDashboard(); renderTabla(); renderActs(); renderCuentasPanel();
 
-if (SCRIPT_URL) {
-  document.getElementById('setup-modal').style.display = 'none';
-  document.getElementById('script-url').value = SCRIPT_URL;
-  pingScript();
-} else {
-  setSS('', 'Sin configurar — conecta el script primero');
-}
+// URL fija — conectar directo
+document.getElementById('setup-modal').style.display = 'none';
+pingScript();
+cargarDesdeSheets();
 
 // ══════════════════════════════════════
 // MANEJO DE ARCHIVOS
@@ -517,19 +514,30 @@ async function subirArchivo(mov) {
   animarBarra();
 
   try {
-    const r = await apiCall('uploadFile', {
-      fileName: `${mov.id}_${archivoActual.nombre}`,
+    // Enviar en partes si el base64 es muy grande
+    const payload = {
+      action: 'uploadFile',
+      fileName: mov.id + '_' + archivoActual.nombre,
       mimeType: archivoActual.mimeType,
-      base64:   archivoActual.base64,
-      movId:    mov.id
+      base64: archivoActual.base64,
+      movId: String(mov.id)
+    };
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'text/plain' }
     });
+    const r = JSON.parse(await resp.text());
     document.getElementById('upload-bar').style.width = '100%';
-    if (r.ok) {
+    if (r.ok && r.url && r.url.startsWith('http')) {
       setUploadStatus('✓ Guardado en Drive', 'ok');
       return r.url;
-    } else throw new Error(r.msg);
+    } else {
+      throw new Error(r.msg || 'Sin URL en respuesta');
+    }
   } catch(e) {
-    setUploadStatus('Error subiendo: ' + e.message, 'err');
+    setUploadStatus('⚠ No se pudo subir: ' + e.message, 'err');
+    toast('Comprobante no subido a Drive: ' + e.message, 'warn');
     return '';
   }
 }
