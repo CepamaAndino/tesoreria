@@ -162,7 +162,94 @@ tr:hover td{background:#f9f9f7}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .pane.on{display:block}
-@media(max-width:620px){.fg,.fg3{grid-template-columns:1fr}.main{padding:12px}.cards{grid-template-columns:1fr 1fr}}
+/* ══════════════════════════════════════
+   RESPONSIVIDAD
+   ══════════════════════════════════════ */
+
+/* Tablet */
+@media(max-width:900px){
+  .resumen-grid{grid-template-columns:1fr}
+  .header h1{font-size:16px}
+  .saldo-badge .val{font-size:18px}
+}
+
+/* Móvil grande / tablet pequeña */
+@media(max-width:760px){
+  .resumen-grid{grid-template-columns:1fr}
+  .main{padding:14px 12px}
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .t-header{flex-direction:column;align-items:flex-start;gap:10px}
+  .filtros{width:100%}
+  .filtros .fi{flex:1;min-width:90px;width:auto}
+  table{font-size:12px}
+  th,td{padding:7px 8px}
+}
+
+/* Móvil */
+@media(max-width:620px){
+  .fg,.fg3{grid-template-columns:1fr}
+  .main{padding:10px}
+  .cards{grid-template-columns:repeat(2,1fr);gap:8px}
+  .card{padding:10px 12px}
+  .c-val{font-size:17px}
+
+  .header{padding:10px 14px;gap:8px}
+  .header-left{gap:8px}
+  .logo{width:34px;height:34px;font-size:14px}
+  .header h1{font-size:14px}
+  .header h1 span{font-size:9px}
+  .saldo-badge{padding:6px 10px}
+  .saldo-badge .val{font-size:16px}
+
+  .sync-bar{padding:6px 12px;font-size:11px}
+  .sync-links{gap:8px}
+  .sync-lnk{font-size:11px}
+
+  .nav-tabs{padding:0 8px}
+  .tab{padding:10px 11px;font-size:12px}
+
+  .panel,.t-panel,.resumen-panel{padding:14px;border-radius:8px}
+  .panel h2,.resumen-panel h2,.t-header h2{font-size:15px}
+
+  .tipos{gap:5px}
+  .t-btn{padding:6px 11px;font-size:11px}
+
+  /* Tablas con scroll horizontal suave */
+  .t-panel > div[style*="overflow-x"]{margin:0 -2px}
+  table{min-width:560px}
+
+  .chart-wrap{height:200px}
+
+  .row-btns{flex-direction:column;align-items:stretch}
+  .row-btns .btn-ok,.row-btns .btn-sec{width:100%;text-align:center}
+
+  .filtros{flex-direction:column;align-items:stretch;gap:6px}
+  .filtros .fi,.filtros select{width:100%}
+  .filtros .btn-xl,.filtros .btn-gs{width:100%;justify-content:center}
+
+  .upload-zone{padding:14px}
+  .preview-box.on{flex-wrap:wrap}
+
+  .act-grid{grid-template-columns:repeat(2,1fr)}
+  .act-card{padding:10px}
+
+  .modal{padding:18px;border-radius:12px}
+  .modal h2{font-size:18px}
+}
+
+/* Móvil chico */
+@media(max-width:400px){
+  .cards{grid-template-columns:1fr 1fr}
+  .act-grid{grid-template-columns:1fr 1fr}
+  .header-right,.header > div:last-child{flex-wrap:wrap;justify-content:flex-end}
+  .pending-badge{order:-1}
+}
+
+/* Asegurar que tablas siempre tengan scroll horizontal en pantallas chicas */
+.t-panel table{min-width:0}
+@media(max-width:760px){
+  .t-panel > div{overflow-x:auto;-webkit-overflow-scrolling:touch}
+}
 
 /* RESUMEN FINANCIERO */
 .resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
@@ -178,7 +265,7 @@ tr:hover td{background:#f9f9f7}
 .res-neg{color:var(--rojo);font-weight:600}
 .legend-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;color:var(--texto2)}
 .legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-@media(max-width:760px){.resumen-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
