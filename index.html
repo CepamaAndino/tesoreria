@@ -465,6 +465,9 @@ let tipo = '';
 let archivoActual = null; // { file, base64, mimeType, nombre }
 let comprobanteUrlActual = ''; // URL ya subida
 const ICONOS={'Cuotas anuales apoderados':'📋','Bingo Andino 2026':'🎰','Fiesta Costumbrista':'🪆','Día del Profesor':'👩‍🏫','Día del Alumno':'🎒','Kermés / Feria':'🎠','Completos / Wraps':'🌭','Bazar / Reutiliza Andino':'♻️','General':'📁'};
+let chartIngresos = null;
+let chartGastos = null;
+const PALETA = ['#1a6b45','#c89b2a','#1a4fa0','#c0392b','#7c3aed','#be185d','#0f9d58','#e67e22','#16a085','#8e44ad','#2980b9','#d35400'];
 
 // ══════════════════════════════════════
 // INIT
@@ -818,10 +821,6 @@ function renderDashboard() {
 // ══════════════════════════════════════
 // RESUMEN FINANCIERO - GRÁFICOS
 // ══════════════════════════════════════
-let chartIngresos = null;
-let chartGastos = null;
-const PALETA = ['#1a6b45','#c89b2a','#1a4fa0','#c0392b','#7c3aed','#be185d','#0f9d58','#e67e22','#16a085','#8e44ad','#2980b9','#d35400'];
-
 function renderResumenFinanciero() {
   if (typeof Chart === 'undefined') return; // librería aún no cargó
 
