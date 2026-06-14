@@ -6,6 +6,7 @@
 <title>Tesorería CEPAMA 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -162,6 +163,22 @@ tr:hover td{background:#f9f9f7}
 
 .pane.on{display:block}
 @media(max-width:620px){.fg,.fg3{grid-template-columns:1fr}.main{padding:12px}.cards{grid-template-columns:1fr 1fr}}
+
+/* RESUMEN FINANCIERO */
+.resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.resumen-panel{background:var(--blanco);border-radius:var(--radio);padding:16px 18px;box-shadow:var(--sombra)}
+.resumen-panel h2{font-family:'DM Serif Display',serif;font-size:16px;font-weight:400;color:var(--verde);margin-bottom:12px}
+.chart-wrap{position:relative;height:240px}
+.chart-empty{text-align:center;color:var(--gris3);padding:50px 0;font-size:13px}
+.act-result-table{width:100%;font-size:13px;border-collapse:collapse}
+.act-result-table th{padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--gris3);border-bottom:2px solid var(--gris2)}
+.act-result-table td{padding:8px 10px;border-bottom:1px solid var(--gris2)}
+.act-result-table tr:last-child td{border-bottom:none}
+.res-pos{color:var(--verde-mid);font-weight:600}
+.res-neg{color:var(--rojo);font-weight:600}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;color:var(--texto2)}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+@media(max-width:760px){.resumen-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -243,6 +260,28 @@ tr:hover td{background:#f9f9f7}
     <div class="card"><div class="c-lbl">Donaciones</div><div class="c-val" id="td">$0</div><div class="c-sub">2026</div></div>
     <div class="card"><div class="c-lbl">Movimientos</div><div class="c-val" id="tm">0</div><div class="c-sub">Total</div></div>
   </div>
+  <div class="resumen-grid">
+    <div class="resumen-panel">
+      <h2>📊 Composición de Ingresos por Actividad</h2>
+      <div class="chart-wrap"><canvas id="chart-ingresos"></canvas></div>
+      <div id="legend-ingresos" style="margin-top:8px"></div>
+    </div>
+    <div class="resumen-panel">
+      <h2>💸 Principales Gastos por Actividad</h2>
+      <div class="chart-wrap"><canvas id="chart-gastos"></canvas></div>
+    </div>
+  </div>
+
+  <div class="t-panel" style="margin-bottom:18px">
+    <div class="t-header"><h2>📋 Resultado por Actividad (Ingresos − Gastos)</h2></div>
+    <div style="padding:4px 18px 14px;overflow-x:auto">
+      <table class="act-result-table">
+        <thead><tr><th>Actividad</th><th>Ingresos</th><th>Gastos</th><th>Resultado</th></tr></thead>
+        <tbody id="t-resultado-act"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="t-panel">
     <div class="t-header"><h2>Últimos movimientos</h2></div>
     <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Actividad</th><th>Responsable</th><th>Descripción</th><th>Comp.</th><th>Monto</th></tr></thead>
@@ -769,11 +808,125 @@ function renderDashboard() {
     <td>${compLink(m)}</td>
     <td class="${sc(m.tipo)}">${sg(m.tipo)}${fmt(m.monto)}</td></tr>`).join('')
     :'<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gris3)">Sin movimientos</td></tr>';
+  renderResumenFinanciero();
 }
 
 // ══════════════════════════════════════
 // TABLA
 // ══════════════════════════════════════
+
+// ══════════════════════════════════════
+// RESUMEN FINANCIERO - GRÁFICOS
+// ══════════════════════════════════════
+let chartIngresos = null;
+let chartGastos = null;
+const PALETA = ['#1a6b45','#c89b2a','#1a4fa0','#c0392b','#7c3aed','#be185d','#0f9d58','#e67e22','#16a085','#8e44ad','#2980b9','#d35400'];
+
+function renderResumenFinanciero() {
+  if (typeof Chart === 'undefined') return; // librería aún no cargó
+
+  // Agrupar por actividad
+  const porAct = {};
+  movs.forEach(m => {
+    const k = m.actividad || 'General';
+    if (!porAct[k]) porAct[k] = { ing: 0, gas: 0 };
+    if (['ingreso','abono','donacion'].includes(m.tipo)) porAct[k].ing += m.monto;
+    else porAct[k].gas += m.monto;
+  });
+
+  // ── GRÁFICO 1: Composición de ingresos (dona) ──
+  const ingEntries = Object.entries(porAct).filter(([k,v]) => v.ing > 0).sort((a,b) => b[1].ing - a[1].ing);
+  const ctxI = document.getElementById('chart-ingresos');
+  if (chartIngresos) chartIngresos.destroy();
+
+  if (!ingEntries.length) {
+    ctxI.getContext('2d').clearRect(0,0,ctxI.width,ctxI.height);
+    document.getElementById('legend-ingresos').innerHTML = '<div class="chart-empty">Aún no hay ingresos registrados</div>';
+  } else {
+    const totalIng = ingEntries.reduce((s,[,v]) => s + v.ing, 0);
+    chartIngresos = new Chart(ctxI, {
+      type: 'doughnut',
+      data: {
+        labels: ingEntries.map(([k]) => k),
+        datasets: [{
+          data: ingEntries.map(([,v]) => v.ing),
+          backgroundColor: ingEntries.map((_,i) => PALETA[i % PALETA.length]),
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const pct = ((ctx.parsed / totalIng) * 100).toFixed(1);
+                return ` ${ctx.label}: ${fmt(ctx.parsed)} (${pct}%)`;
+              }
+            }
+          }
+        },
+        cutout: '60%'
+      }
+    });
+    // Leyenda custom
+    document.getElementById('legend-ingresos').innerHTML = ingEntries.map(([k,v],i) => {
+      const pct = ((v.ing/totalIng)*100).toFixed(1);
+      return `<div class="legend-row"><span class="legend-dot" style="background:${PALETA[i%PALETA.length]}"></span>
+        <span style="flex:1">${k}</span><span style="font-weight:600;color:var(--texto)">${fmt(v.ing)}</span>
+        <span style="color:var(--gris3);width:42px;text-align:right">${pct}%</span></div>`;
+    }).join('');
+  }
+
+  // ── GRÁFICO 2: Principales gastos (barras horizontales) ──
+  const gasEntries = Object.entries(porAct).filter(([k,v]) => v.gas > 0).sort((a,b) => b[1].gas - a[1].gas).slice(0,8);
+  const ctxG = document.getElementById('chart-gastos');
+  if (chartGastos) chartGastos.destroy();
+
+  if (!gasEntries.length) {
+    ctxG.getContext('2d').clearRect(0,0,ctxG.width,ctxG.height);
+  } else {
+    chartGastos = new Chart(ctxG, {
+      type: 'bar',
+      data: {
+        labels: gasEntries.map(([k]) => k),
+        datasets: [{
+          data: gasEntries.map(([,v]) => v.gas),
+          backgroundColor: '#c0392b',
+          borderRadius: 5,
+          maxBarThickness: 28
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.parsed.x) } }
+        },
+        scales: {
+          x: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#f0f0ec' } },
+          y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  // ── TABLA: Resultado por actividad ──
+  const todasActs = Object.entries(porAct).sort((a,b) => (b[1].ing-b[1].gas) - (a[1].ing-a[1].gas));
+  document.getElementById('t-resultado-act').innerHTML = todasActs.length ? todasActs.map(([k,v]) => {
+    const res = v.ing - v.gas;
+    return `<tr>
+      <td style="font-weight:500">${k}</td>
+      <td class="mp">${fmt(v.ing)}</td>
+      <td class="mn">${fmt(v.gas)}</td>
+      <td class="${res>=0?'res-pos':'res-neg'}">${res>=0?'+':'-'}${fmt(res)}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gris3)">Sin datos aún</td></tr>';
+}
+
 function renderTabla() {
   const txt=document.getElementById('ftxt').value.toLowerCase();
   const tp=document.getElementById('ftipo').value;
