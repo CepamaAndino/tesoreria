@@ -389,6 +389,7 @@
         <input type="text" id="searchBox" placeholder="Buscar comprador, alumno o curso...">
         <button class="btn btn-secondary btn-sm" onclick="loadPurchases()">🔄 Actualizar</button>
         <button class="btn btn-ghost btn-sm" onclick="exportExcel()">📊 Exportar Excel</button>
+        <button class="btn btn-sm" style="background:var(--rech);color:#fff;" onclick="openResetModal()">🗑️ Resetear todo</button>
       </div>
 
       <div class="table-wrap">
@@ -410,12 +411,26 @@
 
 <div id="copyToast">Copiado ✔</div>
 
+<div id="resetModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(43,32,22,0.55); z-index:200; align-items:center; justify-content:center;">
+  <div class="card" style="max-width:380px; margin:0 16px;">
+    <h2 style="color:var(--rech);">⚠️ Resetear todo</h2>
+    <p class="sub">Esto borra <b>todas</b> las compras registradas (pendientes, aceptadas y rechazadas) de la planilla. No se puede deshacer.</p>
+    <label>Escribe <b>BORRAR TODO</b> para confirmar</label>
+    <input type="text" id="resetConfirmInput" placeholder="BORRAR TODO">
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeResetModal()">Cancelar</button>
+      <button class="btn" style="flex:1; background:var(--rech); color:#fff;" onclick="confirmResetAll()">Sí, borrar todo</button>
+    </div>
+    <div class="err" id="resetErr"></div>
+  </div>
+</div>
+
 <script>
 /* ============ CONFIGURACIÓN ============ */
 // ⚠️ Reemplaza esto con la URL de tu implementación de Apps Script (termina en /exec)
 const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzE88LzoK5GfvXlMJHrg_OokCs3oCsF7cSr5WDcHV04EGeuazyvK6Zov2-ddcHzopoT/exec';
 // Número de WhatsApp del colegio/admin que recibirá la notificación de compra (formato 569XXXXXXXX)
-const ADMIN_WHATSAPP = '56969159984';
+const ADMIN_WHATSAPP = '569XXXXXXXX';
 
 let purchasesCache = [];
 let currentFilter = 'todas';
@@ -540,7 +555,7 @@ function showConfirmation(p){
     <p>Monto a transferir: <b>$${p.monto.toLocaleString('es-CL')}</b></p>
     <p><span class="badge pendiente">Pendiente de validación</span></p>
     <a class="btn btn-wsp" href="https://wa.me/56${ADMIN_WHATSAPP.replace(/^56/,'')}?text=${msg}" target="_blank" rel="noopener">💬 Enviar comprobante por WhatsApp</a>
-    <p class="note">Cuando el colegio valide tu transferencia, podrás descargar tus cartones desde "¿Ya compraste?" en esta misma página, o te llegarán por WhatsApp.</p>
+    <p class="note">Cuando el CEPAMA valide tu transferencia, podrás descargar tus cartones desde "¿Ya compraste?" en esta misma página, o te llegarán por WhatsApp.</p>
   `;
 }
 function pad(n){ return String(n).padStart(4,'0'); }
@@ -653,6 +668,7 @@ function renderTable(){
             <option value="rechazada" ${p.estado==='rechazada'?'selected':''}>Rechazada</option>
           </select>
           <button class="btn btn-secondary btn-sm" onclick="saveEstado('${p.id}')">Guardar</button>
+          <button class="btn btn-sm" style="background:var(--rech);color:#fff;" onclick="deleteOne('${p.id}')">🗑️</button>
           ${p.estado==='aceptada' ? `
             <button class="btn btn-ghost btn-sm" onclick='downloadCardsPDF(${JSON.stringify(p)})'>📄 PDF</button>
             <button class="btn btn-wsp btn-sm" onclick='sendWhatsapp(${JSON.stringify(p)})'>💬</button>
@@ -679,9 +695,45 @@ function sendWhatsapp(p){
   const rangeTxt = p.desde===p.hasta ? ('BA-'+pad(p.desde)) : ('BA-'+pad(p.desde)+' al BA-'+pad(p.hasta));
   const msg = encodeURIComponent(
     `Hola ${p.comprador}! Tu compra de BINGO ANDINO 2026 fue APROBADA ✅. `+
-    `Tus cartones son: ${rangeTxt}. Te adjunto el PDF para que los imprimas. ¡Gracias por apoyar a ${p.alumno}!`
+    `Tus cartones son: ${rangeTxt}. Te adjunto el PDF con los cartones para que los imprimas. ¡Gracias por apoyar a ${p.alumno}!`
   );
   window.open(`https://wa.me/56${p.whatsapp}?text=${msg}`, '_blank');
+}
+
+/* ============ ELIMINAR UNA COMPRA ============ */
+async function deleteOne(id){
+  if(!confirm('¿Eliminar la compra '+id+'? Esta acción no se puede deshacer.')) return;
+  try{
+    await callBackend('deletePurchase', {id, password: adminPassword});
+    await loadPurchases();
+  }catch(err){
+    alert('Error: '+err.message);
+  }
+}
+
+/* ============ RESETEAR TODO ============ */
+function openResetModal(){
+  document.getElementById('resetConfirmInput').value='';
+  document.getElementById('resetErr').textContent='';
+  document.getElementById('resetModalOverlay').style.display='flex';
+}
+function closeResetModal(){
+  document.getElementById('resetModalOverlay').style.display='none';
+}
+async function confirmResetAll(){
+  const val = document.getElementById('resetConfirmInput').value;
+  const errBox = document.getElementById('resetErr');
+  if(val !== 'BORRAR TODO'){
+    errBox.textContent = 'Debes escribir exactamente: BORRAR TODO';
+    return;
+  }
+  try{
+    await callBackend('resetAll', {password: adminPassword, confirmacion: val});
+    closeResetModal();
+    await loadPurchases();
+  }catch(err){
+    errBox.textContent = err.message;
+  }
 }
 
 /* ============ EXPORTAR EXCEL ============ */
