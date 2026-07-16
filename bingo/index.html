@@ -296,6 +296,9 @@
           <label>Nombre del comprador (apoderado)</label>
           <input type="text" id="nombreComprador" required>
 
+          <label>Email</label>
+          <input type="text" id="email" placeholder="tucorreo@ejemplo.com" required>
+
           <label>Nombre del alumno/a</label>
           <input type="text" id="nombreAlumno" required>
 
@@ -396,7 +399,7 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th><th>Fecha</th><th>Comprador</th><th>Alumno</th><th>Curso</th>
+              <th>ID</th><th>Fecha</th><th>Comprador</th><th>Email</th><th>Alumno</th><th>Curso</th>
               <th>WhatsApp</th><th>Cartones</th><th>Monto</th><th>Estado</th><th>Acciones</th>
             </tr>
           </thead>
@@ -516,11 +519,16 @@ document.getElementById('purchaseForm').addEventListener('submit', async (e)=>{
   const submitBtn = document.getElementById('submitBtn');
   const payload = {
     nombreComprador: document.getElementById('nombreComprador').value.trim(),
+    email: document.getElementById('email').value.trim(),
     nombreAlumno: document.getElementById('nombreAlumno').value.trim(),
     curso: document.getElementById('curso').value.trim(),
     whatsapp: whatsappInput.value.trim(),
     cantidad: cantidadInput.value
   };
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)){
+    errBox.textContent = 'Ingresa un email válido.';
+    return;
+  }
   if(!/^\d{9}$/.test(payload.whatsapp)){
     errBox.textContent = 'El WhatsApp debe tener 9 dígitos.';
     return;
@@ -555,7 +563,7 @@ function showConfirmation(p){
     <p>Monto a transferir: <b>$${p.monto.toLocaleString('es-CL')}</b></p>
     <p><span class="badge pendiente">Pendiente de validación</span></p>
     <a class="btn btn-wsp" href="https://wa.me/56${ADMIN_WHATSAPP.replace(/^56/,'')}?text=${msg}" target="_blank" rel="noopener">💬 Enviar comprobante por WhatsApp</a>
-    <p class="note">Cuando el CEPAMA valide tu transferencia, podrás descargar tus cartones desde "¿Ya compraste?" en esta misma página, o te llegarán por WhatsApp.</p>
+    <p class="note">Cuando el colegio valide tu transferencia, podrás descargar tus cartones desde "¿Ya compraste?" en esta misma página, o te llegarán por WhatsApp.</p>
   `;
 }
 function pad(n){ return String(n).padStart(4,'0'); }
@@ -654,6 +662,7 @@ function renderTable(){
       <td>${p.id}</td>
       <td>${new Date(p.fecha).toLocaleDateString('es-CL')}</td>
       <td>${escapeHtml(p.comprador)}</td>
+      <td style="font-size:11.5px;">${escapeHtml(p.email||'—')}</td>
       <td>${escapeHtml(p.alumno)}</td>
       <td>${escapeHtml(p.curso)}</td>
       <td>+56${p.whatsapp}</td>
@@ -684,8 +693,9 @@ function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<"
 async function saveEstado(id){
   const nuevoEstado = document.getElementById('sel-'+id).value;
   try{
-    await callBackend('updateStatus', {id, estado: nuevoEstado, password: adminPassword});
+    const r = await callBackend('updateStatus', {id, estado: nuevoEstado, password: adminPassword});
     await loadPurchases();
+    if(r.emailWarning) alert(r.emailWarning);
   }catch(err){
     alert('Error: '+err.message);
   }
@@ -695,7 +705,7 @@ function sendWhatsapp(p){
   const rangeTxt = p.desde===p.hasta ? ('BA-'+pad(p.desde)) : ('BA-'+pad(p.desde)+' al BA-'+pad(p.hasta));
   const msg = encodeURIComponent(
     `Hola ${p.comprador}! Tu compra de BINGO ANDINO 2026 fue APROBADA ✅. `+
-    `Tus cartones son: ${rangeTxt}. Te adjunto el PDF con los cartones para que los imprimas. ¡Gracias por apoyar a ${p.alumno}!`
+    `Tus cartones son: ${rangeTxt}. Te adjunto el PDF para que los imprimas. ¡Gracias por apoyar a ${p.alumno}!`
   );
   window.open(`https://wa.me/56${p.whatsapp}?text=${msg}`, '_blank');
 }
@@ -739,8 +749,8 @@ async function confirmResetAll(){
 /* ============ EXPORTAR EXCEL ============ */
 function exportExcel(){
   const data = purchasesCache.map(p=>({
-    ID:p.id, Fecha:new Date(p.fecha).toLocaleString('es-CL'), Comprador:p.comprador, Alumno:p.alumno,
-    Curso:p.curso, WhatsApp:'+56'+p.whatsapp, Cantidad:p.cantidad,
+    ID:p.id, Fecha:new Date(p.fecha).toLocaleString('es-CL'), Comprador:p.comprador, Email:p.email||'',
+    Alumno:p.alumno, Curso:p.curso, WhatsApp:'+56'+p.whatsapp, Cantidad:p.cantidad,
     CartonDesde:'BA-'+pad(p.desde), CartonHasta:'BA-'+pad(p.hasta), Monto:p.monto, Estado:p.estado
   }));
   const ws = XLSX.utils.json_to_sheet(data);
