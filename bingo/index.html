@@ -267,6 +267,29 @@
   .err{ color:var(--rech); font-size:13px; font-weight:700; margin-top:8px; }
   .spinner{ font-size:13px; color:#7a6a4f; }
   select.estado-select{ font-size:12.5px; padding:6px 8px;}
+
+  .called-grid, .number-pad{
+    display:grid;
+    grid-template-columns:repeat(15,1fr);
+    gap:4px;
+  }
+  @media (max-width:600px){
+    .called-grid, .number-pad{ grid-template-columns:repeat(8,1fr); }
+  }
+  .num-cell{
+    aspect-ratio:1;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:6px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:10.5px;
+    border:1.5px solid #d9c9a3;
+    background:#fffdf8;
+    color:#9c8a68;
+  }
+  .num-cell.called{ background:var(--turquesa); border-color:var(--turquesa-dark); color:#fff; }
+  .num-cell.clickable{ cursor:pointer; }
+  .num-cell.clickable:active{ transform:scale(0.9); }
 </style>
 </head>
 <body>
@@ -280,6 +303,7 @@
 
 <nav class="tabs">
   <button class="active" data-view="comprar">🎟️ Comprar cartones</button>
+  <button data-view="juego">🎱 Juego en vivo</button>
   <button data-view="admin">🔐 Panel administración</button>
 </nav>
 
@@ -365,6 +389,48 @@
     <div class="card confirm-box" id="confirmBox" style="display:none; margin-top:20px;"></div>
   </section>
 
+  <!-- ================= VISTA JUEGO EN VIVO ================= -->
+  <section id="view-juego" class="view">
+    <div class="card" style="text-align:center;">
+      <h2 style="font-size:15px;">Último número cantado</h2>
+      <div id="lastCalled" style="font-family:'Fraunces',serif;font-weight:900;font-size:52px;color:var(--terracota-dark);">—</div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Números cantados (<span id="calledCount">0</span>/75)</h2>
+      <div id="calledGrid" class="called-grid"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Verificar cartón ganador</h2>
+      <p class="sub">Cualquiera puede revisar aquí si su cartón ganó, según lo cantado hasta ahora.</p>
+      <div class="phone-row">
+        <span class="prefix">BA-</span>
+        <input type="text" id="verifyCardInput" maxlength="4" placeholder="0007">
+      </div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="verifyCardUI()">🔍 Verificar</button>
+      <div id="verifyResult"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>🎛️ Modo operador</h2>
+      <div id="operatorLocked">
+        <p class="sub">Solo quien esté cantando los números del bolillero. Ingresa la clave de administración.</p>
+        <input type="text" id="operatorPass" placeholder="Contraseña">
+        <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="operatorUnlock()">Desbloquear</button>
+        <div class="err" id="operatorErr"></div>
+      </div>
+      <div id="operatorControls" style="display:none;">
+        <p class="sub">Toca el número que acaba de salir del bolillero para registrarlo.</p>
+        <div id="numberPad" class="number-pad"></div>
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="undoLastCalled()">↩️ Deshacer último</button>
+          <button class="btn" style="flex:1;background:var(--rech);color:#fff;" onclick="resetGameConfirm()">🗑️ Reiniciar juego</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= VISTA ADMIN ================= -->
   <section id="view-admin" class="view">
 
@@ -446,6 +512,10 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
     btn.classList.add('active');
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view === 'juego'){
+      renderCalledGrid();
+      if(operatorUnlocked) renderNumberPad();
+    }
   });
 });
 
@@ -591,6 +661,125 @@ async function checkMyStatus(){
     box.innerHTML = '<p class="err">'+err.message+'</p>';
   }
 }
+
+/* ============ JUEGO EN VIVO: NÚMEROS CANTADOS ============ */
+const BINGO_LETTERS = ['B','I','N','G','O'];
+function letterForNumber(n){ return BINGO_LETTERS[Math.floor((n-1)/15)]; }
+
+let calledNumbers = [];
+try{ calledNumbers = JSON.parse(localStorage.getItem('bingoAndino2026_calledNumbers')||'[]'); }catch(e){ calledNumbers = []; }
+let operatorUnlocked = false;
+
+function saveCalled(){ localStorage.setItem('bingoAndino2026_calledNumbers', JSON.stringify(calledNumbers)); }
+
+function renderCalledGrid(){
+  const grid = document.getElementById('calledGrid');
+  grid.innerHTML='';
+  for(let n=1;n<=75;n++){
+    const d = document.createElement('div');
+    d.className = 'num-cell' + (calledNumbers.includes(n) ? ' called' : '');
+    d.textContent = letterForNumber(n)+n;
+    grid.appendChild(d);
+  }
+  document.getElementById('calledCount').textContent = calledNumbers.length;
+  const last = calledNumbers[calledNumbers.length-1];
+  document.getElementById('lastCalled').textContent = last ? (letterForNumber(last)+'-'+last) : '—';
+}
+
+function renderNumberPad(){
+  const pad = document.getElementById('numberPad');
+  pad.innerHTML='';
+  for(let n=1;n<=75;n++){
+    const d = document.createElement('div');
+    const called = calledNumbers.includes(n);
+    d.className = 'num-cell clickable' + (called?' called':'');
+    d.textContent = letterForNumber(n)+n;
+    if(!called) d.onclick = ()=>markCalled(n);
+    pad.appendChild(d);
+  }
+}
+
+function markCalled(n){
+  if(calledNumbers.includes(n)) return;
+  calledNumbers.push(n);
+  saveCalled();
+  renderCalledGrid();
+  renderNumberPad();
+}
+function undoLastCalled(){
+  calledNumbers.pop();
+  saveCalled();
+  renderCalledGrid();
+  renderNumberPad();
+}
+function resetGameConfirm(){
+  if(!confirm('¿Reiniciar el juego? Se borran todos los números cantados de este dispositivo.')) return;
+  calledNumbers = [];
+  saveCalled();
+  renderCalledGrid();
+  renderNumberPad();
+}
+
+async function operatorUnlock(){
+  const pass = document.getElementById('operatorPass').value;
+  const errBox = document.getElementById('operatorErr');
+  errBox.textContent='';
+  try{
+    await callBackend('listPurchases', {password: pass}); // reutiliza la misma clave de admin
+    adminPassword = adminPassword || pass;
+    operatorUnlocked = true;
+    document.getElementById('operatorLocked').style.display='none';
+    document.getElementById('operatorControls').style.display='block';
+    renderNumberPad();
+  }catch(err){
+    errBox.textContent = err.message;
+  }
+}
+
+/* ============ VERIFICADOR DE CARTÓN GANADOR ============ */
+function verifyCardUI(){
+  const raw = document.getElementById('verifyCardInput').value.trim();
+  const cardNum = parseInt(raw,10);
+  const box = document.getElementById('verifyResult');
+  if(!cardNum || cardNum<1 || cardNum>1000){
+    box.innerHTML='<p class="err">Ingresa un número de cartón válido (1 a 1000).</p>';
+    return;
+  }
+  const calledSet = new Set(calledNumbers);
+  const cols = generateCard(cardNum);
+  const marked = cols.map(col=>col.map(v=> v==='FREE' ? true : calledSet.has(v)));
+
+  const results = [];
+  for(let r=0;r<5;r++){
+    if([0,1,2,3,4].every(c=>marked[c][r])) results.push('Línea horizontal (fila '+(r+1)+')');
+  }
+  for(let c=0;c<5;c++){
+    if(marked[c].every(Boolean)) results.push('Línea vertical ('+BINGO_LETTERS[c]+')');
+  }
+  if([0,1,2,3,4].every(i=>marked[i][i])) results.push('Diagonal ↘');
+  if([0,1,2,3,4].every(i=>marked[i][4-i])) results.push('Diagonal ↙');
+  if(marked[0][0] && marked[4][0] && marked[0][4] && marked[4][4]) results.push('4 esquinas');
+  if(marked.every(col=>col.every(Boolean))) results.push('¡CARTÓN LLENO! 🎉');
+
+  let gridHtml = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:14px auto;max-width:280px;">';
+  for(let r=0;r<5;r++){
+    for(let c=0;c<5;c++){
+      const v = cols[c][r];
+      const isMarked = marked[c][r];
+      gridHtml += `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;font-weight:700;font-size:13px;border:1.5px solid #2B2016;background:${isMarked?'#2A6F77':'#fffdf8'};color:${isMarked?'#fff':'#2B2016'};">${v}</div>`;
+    }
+  }
+  gridHtml += '</div>';
+
+  box.innerHTML = `
+    <div class="price-box" style="margin-top:12px;">
+      <b>Cartón BA-${pad(cardNum)}</b>
+      ${gridHtml}
+      ${results.length ? results.map(r=>'<span class="badge aceptada" style="display:block;margin:4px 0;">✅ '+r+'</span>').join('') : '<p class="note">Aún no completa ningún patrón con los números cantados hasta ahora.</p>'}
+    </div>
+  `;
+}
+renderCalledGrid();
 
 /* ============ ADMIN: LOGIN ============ */
 let adminPassword = '';
