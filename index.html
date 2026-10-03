@@ -48,18 +48,13 @@
   }
   .hero{
     width:100%;
-    max-height:min(55vh, 380px);
     overflow:hidden;
     line-height:0;
     background:var(--turquesa-dark);
-    display:flex;
-    justify-content:center;
   }
   .hero img{
     width:100%;
     height:auto;
-    max-height:min(55vh, 380px);
-    object-fit:contain;
     display:block;
   }
   nav.tabs{
@@ -218,11 +213,30 @@
   .login-box{ max-width:340px; margin:60px auto; text-align:center;}
   .stats{
     display:grid;
-    grid-template-columns:repeat(4,1fr);
+    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
     gap:10px;
     margin-bottom:18px;
   }
   @media (max-width:760px){ .stats{grid-template-columns:repeat(2,1fr);} }
+
+  .qty-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 0; border-bottom:1px dotted #e2d3b0;
+  }
+  .qty-row:last-child{ border-bottom:none; }
+  .qty-row .pname{ font-weight:700; font-size:13.5px; flex:2; }
+  .qty-row .pprice{ font-size:12px; color:#7a6a4f; }
+  .qty-controls{ display:flex; align-items:center; gap:8px; }
+  .qty-btn{
+    width:28px; height:28px; border-radius:8px; border:1.5px solid var(--tinta);
+    background:#fff; font-weight:800; font-size:16px; cursor:pointer; line-height:1;
+  }
+  .qty-val{ min-width:18px; text-align:center; font-weight:700; }
+  .prod-edit-row{
+    display:flex; align-items:center; gap:6px; padding:6px 0; border-bottom:1px dotted #e2d3b0;
+  }
+  .prod-edit-row input[type=text]{ flex:2; padding:6px 8px; font-size:13px; }
+  .prod-edit-row input[type=number]{ flex:1; padding:6px 8px; font-size:13px; }
   .stat{
     background:#fff;
     border-radius:12px;
@@ -259,6 +273,18 @@
   .err{ color:var(--rech); font-size:13px; font-weight:700; margin-top:8px; }
   .spinner{ font-size:13px; color:#7a6a4f; }
   select.estado-select{ font-size:12.5px; padding:6px 8px;}
+
+  .print-only{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    .print-only, .print-only *{ visibility:visible; }
+    .print-only{ position:absolute; top:0; left:0; width:100%; display:block; }
+  }
+  .voucher-box{
+    max-width:380px; margin:0 auto; padding:24px;
+    font-family:Arial,sans-serif; text-align:center; color:#000;
+    border:2px dashed #000;
+  }
 
   .counter-box{
     background:var(--turquesa);
@@ -376,7 +402,23 @@
           <input type="text" id="nombreAlumno" required>
 
           <label>Curso</label>
-          <input type="text" id="curso" placeholder="Ej: 3° Básico Guayacán" required>
+          <select id="curso" required>
+            <option value="" disabled selected>Selecciona un curso</option>
+            <option value="Prekinder">Prekinder</option>
+            <option value="Kinder">Kinder</option>
+            <option value="Taller 1: 1° Básico">Taller 1: 1° Básico</option>
+            <option value="Taller 1: 2° Básico">Taller 1: 2° Básico</option>
+            <option value="Taller 2: 3° Básico">Taller 2: 3° Básico</option>
+            <option value="Taller 2: 4° Básico">Taller 2: 4° Básico</option>
+            <option value="Taller 3: 5° Básico">Taller 3: 5° Básico</option>
+            <option value="Taller 3: 6° Básico">Taller 3: 6° Básico</option>
+            <option value="Taller 4: 7° Básico">Taller 4: 7° Básico</option>
+            <option value="Taller 4: 8° Básico">Taller 4: 8° Básico</option>
+            <option value="Taller 5: 1° Medio">Taller 5: 1° Medio</option>
+            <option value="Taller 5: 2° Medio">Taller 5: 2° Medio</option>
+            <option value="Taller 6: 3° Medio">Taller 6: 3° Medio</option>
+            <option value="Taller 6: 4° Medio">Taller 6: 4° Medio</option>
+          </select>
 
           <label>WhatsApp</label>
           <div class="phone-row">
@@ -445,8 +487,51 @@
         <button class="btn btn-secondary btn-sm" id="modoToggleBtn" onclick="toggleModo()">Cambiar modo</button>
       </div>
 
+      <div class="card" style="margin-bottom:16px;">
+        <h2 style="font-size:16px;">⚡ Venta presencial rápida</h2>
+        <p class="sub">Para cuando alguien paga ahí mismo (efectivo). Queda aprobada al toque. Puedes vender solo cartones, solo bebestibles, o ambos juntos.</p>
+        <label>Nombre (opcional)</label>
+        <input type="text" id="ventaNombre" placeholder="Ej: Juan Pérez">
+
+        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 6px;">🎟️ Cartones</p>
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;">
+            <label>Cantidad</label>
+            <input type="number" id="ventaCantidadCartones" min="0" value="0" oninput="calcularTotalVenta()">
+          </div>
+          <div style="flex:1;">
+            <label>Monto ($)</label>
+            <input type="number" id="ventaMontoCartones" min="0" value="0" oninput="calcularTotalVenta()">
+          </div>
+        </div>
+
+        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 6px;">🥤 Bebestibles</p>
+        <div id="ventaBebestiblesList"></div>
+
+        <div class="price-box" style="margin-top:14px;">
+          Total de la venta: <b id="ventaTotalCombo">$0</b>
+        </div>
+
+        <button class="btn btn-primary" onclick="registrarVentaPresencial()">🖨️ Registrar y generar voucher</button>
+        <div class="err" id="ventaErr"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <h2 style="font-size:16px;">🥤 Gestionar bebestibles</h2>
+        <p class="sub">Edita precios, agrega o elimina productos del catálogo.</p>
+        <div id="gestionBebestiblesList"></div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <input type="text" id="nuevoProductoNombre" placeholder="Nombre del producto" style="flex:2;">
+          <input type="number" id="nuevoProductoPrecio" placeholder="Precio" min="0" style="flex:1;">
+          <button class="btn btn-secondary btn-sm" onclick="agregarProducto()">+ Agregar</button>
+        </div>
+        <div class="err" id="productoErr"></div>
+      </div>
+
       <div class="stats">
-        <div class="stat"><div class="n" id="statRecaudado">$0</div><div class="l">Recaudado (aceptadas)</div></div>
+        <div class="stat"><div class="n" id="statRecaudado">$0</div><div class="l">Recaudado cartones</div></div>
+        <div class="stat"><div class="n" id="statBebestibles">$0</div><div class="l">Recaudado bebestibles</div></div>
+        <div class="stat"><div class="n" id="statTotalGeneral">$0</div><div class="l">Total general</div></div>
         <div class="stat"><div class="n" id="statVendidos">0</div><div class="l">Cartones vendidos</div></div>
         <div class="stat"><div class="n" id="statDisponibles">0</div><div class="l">Cartones disponibles</div></div>
         <div class="stat"><div class="n" id="statPendientes">0</div><div class="l">Pendientes por revisar</div></div>
@@ -481,6 +566,10 @@
 </main>
 
 <div id="copyToast">Copiado ✔</div>
+
+<div id="voucherPrint" class="print-only">
+  <div class="voucher-box" id="voucherContent"></div>
+</div>
 
 <div id="resetModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(43,32,22,0.55); z-index:200; align-items:center; justify-content:center;">
   <div class="card" style="max-width:380px; margin:0 16px;">
@@ -690,6 +779,7 @@ async function adminLogin(){
     document.getElementById('adminPanel').style.display='block';
     loadPurchases();
     loadModoAdmin();
+    loadProductosAdmin();
   }catch(err){
     errBox.textContent = err.message;
   }
@@ -721,11 +811,17 @@ async function toggleModo(){
 }
 
 /* ============ ADMIN: CARGAR TABLA ============ */
+let bebestiblesVentasCache = [];
+
 async function loadPurchases(){
   document.getElementById('loadingMsg').style.display='block';
   try{
-    const r = await callBackend('listPurchases', {password: adminPassword});
+    const [r, rb] = await Promise.all([
+      callBackend('listPurchases', {password: adminPassword}),
+      callBackend('listBebestiblesVentas', {password: adminPassword})
+    ]);
     purchasesCache = r.rows;
+    bebestiblesVentasCache = rb.rows;
     updateStats(r);
     renderTable();
   }catch(err){
@@ -740,10 +836,13 @@ function updateStats(r){
   const recaudado = aceptadas.reduce((s,p)=>s+Number(p.monto),0);
   const vendidos = aceptadas.reduce((s,p)=>s+Number(p.cantidad),0);
   const pendientes = purchasesCache.filter(p=>p.estado==='pendiente').length;
+  const recaudadoBebestibles = bebestiblesVentasCache.reduce((s,b)=>s+Number(b.monto),0);
   document.getElementById('statRecaudado').textContent = '$'+recaudado.toLocaleString('es-CL');
   document.getElementById('statVendidos').textContent = vendidos;
   document.getElementById('statDisponibles').textContent = r.disponibles;
   document.getElementById('statPendientes').textContent = pendientes;
+  document.getElementById('statBebestibles').textContent = '$'+recaudadoBebestibles.toLocaleString('es-CL');
+  document.getElementById('statTotalGeneral').textContent = '$'+(recaudado+recaudadoBebestibles).toLocaleString('es-CL');
 }
 
 document.querySelectorAll('.filter-chip').forEach(chip=>{
@@ -791,6 +890,7 @@ function renderTable(){
           <button class="btn btn-secondary btn-sm" onclick="saveEstado('${p.id}')">Guardar</button>
           <button class="btn btn-sm" style="background:var(--rech);color:#fff;" onclick="deleteOne('${p.id}')">🗑️</button>
           ${p.estado==='aceptada' ? `
+            <button class="btn btn-ghost btn-sm" onclick='imprimirVoucher(${JSON.stringify(p)})'>🖨️</button>
             <button class="btn btn-wsp btn-sm" onclick='sendWhatsapp(${JSON.stringify(p)})'>💬</button>
           ` : ''}
         </div>
@@ -810,6 +910,181 @@ async function saveEstado(id){
   }catch(err){
     alert('Error: '+err.message);
   }
+}
+
+/* ============ CATÁLOGO DE BEBESTIBLES ============ */
+let productosCache = [];
+let ventaBebestiblesQty = {};
+
+async function loadProductosAdmin(){
+  try{
+    const r = await callBackend('listProductos', {password: adminPassword});
+    productosCache = r.rows;
+    productosCache.forEach(p=>{ if(!(p.id in ventaBebestiblesQty)) ventaBebestiblesQty[p.id] = 0; });
+    renderBebestiblesVenta();
+    renderGestionBebestibles();
+  }catch(err){ /* silencioso */ }
+}
+
+function renderBebestiblesVenta(){
+  const box = document.getElementById('ventaBebestiblesList');
+  if(!productosCache.length){ box.innerHTML = '<p class="note">No hay productos en el catálogo todavía.</p>'; return; }
+  box.innerHTML = productosCache.map(p=>{
+    const qty = ventaBebestiblesQty[p.id] || 0;
+    return `
+      <div class="qty-row">
+        <div>
+          <div class="pname">${escapeHtml(p.nombre)}</div>
+          <div class="pprice">$${Number(p.precio).toLocaleString('es-CL')} c/u</div>
+        </div>
+        <div class="qty-controls">
+          <button type="button" class="qty-btn" onclick="cambiarQty('${p.id}',-1)">−</button>
+          <span class="qty-val">${qty}</span>
+          <button type="button" class="qty-btn" onclick="cambiarQty('${p.id}',1)">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  calcularTotalVenta();
+}
+function cambiarQty(id, delta){
+  ventaBebestiblesQty[id] = Math.max(0, (ventaBebestiblesQty[id]||0) + delta);
+  renderBebestiblesVenta();
+}
+function calcularTotalVenta(){
+  const montoCartones = parseInt(document.getElementById('ventaMontoCartones').value,10) || 0;
+  let totalBeb = 0;
+  productosCache.forEach(p=>{ totalBeb += (ventaBebestiblesQty[p.id]||0) * Number(p.precio); });
+  const total = montoCartones + totalBeb;
+  document.getElementById('ventaTotalCombo').textContent = '$'+total.toLocaleString('es-CL');
+  return { montoCartones, totalBeb, total };
+}
+
+/* ============ GESTIONAR BEBESTIBLES (precios/catálogo) ============ */
+function renderGestionBebestibles(){
+  const box = document.getElementById('gestionBebestiblesList');
+  if(!productosCache.length){ box.innerHTML = '<p class="note">Sin productos aún. Agrega uno abajo.</p>'; return; }
+  box.innerHTML = productosCache.map(p=>`
+    <div class="prod-edit-row">
+      <input type="text" value="${escapeHtml(p.nombre)}" id="pname-${p.id}">
+      <input type="number" value="${p.precio}" min="0" id="pprice-${p.id}">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="guardarProductoEdit('${p.id}')">Guardar</button>
+      <button type="button" class="btn btn-sm" style="background:var(--rech);color:#fff;" onclick="eliminarProductoUI('${p.id}')">🗑️</button>
+    </div>
+  `).join('');
+}
+async function guardarProductoEdit(id){
+  const nombre = document.getElementById('pname-'+id).value.trim();
+  const precio = document.getElementById('pprice-'+id).value;
+  const errBox = document.getElementById('productoErr');
+  errBox.textContent='';
+  try{
+    await callBackend('guardarProducto', {password: adminPassword, id, nombre, precio});
+    await loadProductosAdmin();
+  }catch(err){ errBox.textContent = err.message; }
+}
+async function eliminarProductoUI(id){
+  if(!confirm('¿Eliminar este producto del catálogo?')) return;
+  try{
+    await callBackend('eliminarProducto', {password: adminPassword, id});
+    delete ventaBebestiblesQty[id];
+    await loadProductosAdmin();
+  }catch(err){
+    document.getElementById('productoErr').textContent = err.message;
+  }
+}
+async function agregarProducto(){
+  const nombre = document.getElementById('nuevoProductoNombre').value.trim();
+  const precio = document.getElementById('nuevoProductoPrecio').value;
+  const errBox = document.getElementById('productoErr');
+  errBox.textContent='';
+  if(!nombre || precio===''){ errBox.textContent='Completa nombre y precio.'; return; }
+  try{
+    await callBackend('guardarProducto', {password: adminPassword, nombre, precio});
+    document.getElementById('nuevoProductoNombre').value='';
+    document.getElementById('nuevoProductoPrecio').value='';
+    await loadProductosAdmin();
+  }catch(err){ errBox.textContent = err.message; }
+}
+
+/* ============ VENTA PRESENCIAL COMBINADA + VOUCHER ============ */
+async function registrarVentaPresencial(){
+  const errBox = document.getElementById('ventaErr');
+  errBox.textContent='';
+  const nombre = document.getElementById('ventaNombre').value.trim();
+  const cantidadCartones = document.getElementById('ventaCantidadCartones').value;
+  const montoCartones = document.getElementById('ventaMontoCartones').value;
+  const bebestiblesItems = productosCache
+    .filter(p => (ventaBebestiblesQty[p.id]||0) > 0)
+    .map(p => ({ nombre: p.nombre, cantidad: ventaBebestiblesQty[p.id], precioUnit: p.precio }));
+
+  try{
+    const r = await callBackend('ventaPresencialCompleta', {
+      password: adminPassword, nombreComprador: nombre,
+      cantidadCartones, montoCartones, bebestiblesItems
+    });
+    imprimirVoucherCompleto(r);
+    document.getElementById('ventaNombre').value='';
+    document.getElementById('ventaCantidadCartones').value=0;
+    document.getElementById('ventaMontoCartones').value=0;
+    productosCache.forEach(p=> ventaBebestiblesQty[p.id]=0);
+    renderBebestiblesVenta();
+    await loadPurchases();
+  }catch(err){
+    errBox.textContent = err.message;
+  }
+}
+
+function imprimirVoucherCompleto(r){
+  let html = `
+    <h2 style="margin:0;">BINGO ANDINO 2026</h2>
+    <p style="margin:4px 0;font-size:13px;">Colegio Andino Montessori</p>
+    <p style="margin:4px 0;font-size:13px;">Voucher de compra</p>
+    <hr>
+    <p style="font-size:13px;margin:6px 0;">Comprador: <b>${r.comprador}</b></p>
+  `;
+  if(r.cartones){
+    const rango = r.cartones.desde===r.cartones.hasta ? ('BA-'+pad(r.cartones.desde)) : ('BA-'+pad(r.cartones.desde)+' al BA-'+pad(r.cartones.hasta));
+    html += `
+      <p style="font-size:15px;margin:10px 0 2px;font-weight:bold;">N° ${r.cartones.id}</p>
+      <p style="font-size:13px;margin:2px 0;">Cartones: ${rango} (${r.cartones.cantidad})</p>
+      <p style="font-size:13px;margin:2px 0;">Monto cartones: $${Number(r.cartones.monto).toLocaleString('es-CL')}</p>
+    `;
+  }
+  if(r.bebestibles){
+    html += `
+      <p style="font-size:15px;margin:10px 0 2px;font-weight:bold;">N° ${r.bebestibles.id}</p>
+      <p style="font-size:13px;margin:2px 0;">${r.bebestibles.items}</p>
+      <p style="font-size:13px;margin:2px 0;">Monto bebestibles: $${Number(r.bebestibles.monto).toLocaleString('es-CL')}</p>
+    `;
+  }
+  html += `
+    <hr>
+    <p style="font-size:17px;font-weight:bold;">TOTAL: $${Number(r.montoTotal).toLocaleString('es-CL')}</p>
+    <p style="font-size:11px;margin-top:8px;">Fecha: ${new Date(r.fecha).toLocaleString('es-CL')}</p>
+    <hr>
+    <p style="font-size:11px;">Conserva este voucher como comprobante${r.cartones ? ' y para retirar tus cartones físicos' : ''}.</p>
+  `;
+  document.getElementById('voucherContent').innerHTML = html;
+  window.print();
+}
+
+function imprimirVoucher(p){
+  const rangeTxt = p.desde===p.hasta ? ('BA-'+pad(p.desde)) : ('BA-'+pad(p.desde)+' al BA-'+pad(p.hasta));
+  document.getElementById('voucherContent').innerHTML = `
+    <h2 style="margin:0;">BINGO ANDINO 2026</h2>
+    <p style="margin:4px 0;font-size:13px;">Colegio Andino Montessori</p>
+    <p style="margin:4px 0;font-size:13px;">Voucher de compra</p>
+    <hr>
+    <p style="font-size:22px;font-weight:bold;margin:10px 0;">${p.id}</p>
+    <p style="font-size:14px;margin:6px 0;">Comprador: <b>${p.comprador||'—'}</b></p>
+    <p style="font-size:14px;margin:6px 0;">Cartones: <b>${rangeTxt} (${p.cantidad})</b></p>
+    <p style="font-size:14px;margin:6px 0;">Monto pagado: <b>$${Number(p.monto).toLocaleString('es-CL')}</b></p>
+    <p style="font-size:11px;margin:10px 0 0;">Fecha: ${new Date().toLocaleString('es-CL')}</p>
+    <hr>
+    <p style="font-size:12px;">Presenta este voucher para retirar tus cartones físicos.</p>
+  `;
+  window.print();
 }
 
 function sendWhatsapp(p){
@@ -859,15 +1134,28 @@ async function confirmResetAll(){
 
 /* ============ EXPORTAR EXCEL ============ */
 function exportExcel(){
-  const data = purchasesCache.map(p=>({
+  const dataCartones = purchasesCache.map(p=>({
     ID:p.id, Fecha:new Date(p.fecha).toLocaleString('es-CL'), Comprador:p.comprador, Email:p.email||'',
-    Alumno:p.alumno, Curso:p.curso, WhatsApp:'+56'+p.whatsapp, Modo:p.modo||'', Sets:p.sets||'',
+    Alumno:p.alumno, Curso:p.curso, WhatsApp: p.whatsapp ? ('+56'+p.whatsapp) : '', Modo:p.modo||'', Sets:p.sets||'',
     Cantidad:p.cantidad, CartonDesde:'BA-'+pad(p.desde), CartonHasta:'BA-'+pad(p.hasta), Monto:p.monto, Estado:p.estado
   }));
-  const ws = XLSX.utils.json_to_sheet(data);
+  const dataBebestibles = bebestiblesVentasCache.map(b=>({
+    ID:b.id, Fecha:new Date(b.fecha).toLocaleString('es-CL'), Comprador:b.comprador,
+    Items:b.items, Monto:b.monto, VentaCartonesRef:b.ventaCartonesRef||''
+  }));
+  const recaudadoCartones = purchasesCache.filter(p=>p.estado==='aceptada').reduce((s,p)=>s+Number(p.monto),0);
+  const recaudadoBebestibles = bebestiblesVentasCache.reduce((s,b)=>s+Number(b.monto),0);
+  const resumen = [
+    { Concepto:'Recaudado cartones (aceptadas)', Monto: recaudadoCartones },
+    { Concepto:'Recaudado bebestibles', Monto: recaudadoBebestibles },
+    { Concepto:'TOTAL GENERAL', Monto: recaudadoCartones + recaudadoBebestibles }
+  ];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
-  XLSX.writeFile(wb, 'BINGO_ANDINO_2026.xlsx');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), 'Resumen');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataCartones), 'Cartones');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataBebestibles), 'Bebestibles');
+  XLSX.writeFile(wb, 'BINGO_ANDINO_2026_REPORTE.xlsx');
 }
 
 </script>
