@@ -48,16 +48,18 @@
   }
   .hero{
     width:100%;
-    height:clamp(130px, 22vw, 260px);
+    max-height:min(55vh, 380px);
     overflow:hidden;
     line-height:0;
     background:var(--turquesa-dark);
+    display:flex;
+    justify-content:center;
   }
   .hero img{
     width:100%;
-    height:100%;
-    object-fit:cover;
-    object-position:center 38%;
+    height:auto;
+    max-height:min(55vh, 380px);
+    object-fit:contain;
     display:block;
   }
   nav.tabs{
