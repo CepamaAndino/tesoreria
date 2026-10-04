@@ -42,7 +42,7 @@
       linear-gradient(45deg, var(--mostaza) 25%, transparent 25%),
       linear-gradient(315deg, var(--mostaza) 25%, transparent 25%);
     background-position: 10px 0,10px 0,0 0,0 0;
-    background-size: 20px 15px;
+    background-size: 20px 20px;
     background-repeat: repeat-x;
     background-color: var(--terracota);
   }
@@ -237,6 +237,10 @@
   }
   .prod-edit-row input[type=text]{ flex:2; padding:6px 8px; font-size:13px; }
   .prod-edit-row input[type=number]{ flex:1; padding:6px 8px; font-size:13px; }
+
+  .pay-toggle{ flex:1; }
+  .pay-toggle.active[data-metodo="efectivo"]{ background:#25D366; color:#fff; border-color:#1ea952; }
+  .pay-toggle.active[data-metodo="transferencia"]{ background:var(--turquesa); color:#fff; border-color:var(--turquesa-dark); }
   .stat{
     background:#fff;
     border-radius:12px;
@@ -489,31 +493,47 @@
 
       <div class="card" style="margin-bottom:16px;">
         <h2 style="font-size:16px;">⚡ Venta presencial rápida</h2>
-        <p class="sub">Para cuando alguien paga ahí mismo (efectivo). Queda aprobada al toque. Puedes vender solo cartones, solo bebestibles, o ambos juntos.</p>
+        <p class="sub">Para cuando alguien paga ahí mismo. Queda aprobada al toque.</p>
         <label>Nombre (opcional)</label>
         <input type="text" id="ventaNombre" placeholder="Ej: Juan Pérez">
 
-        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 6px;">🎟️ Cartones</p>
-        <div style="display:flex; gap:10px;">
-          <div style="flex:1;">
-            <label>Cantidad</label>
-            <input type="number" id="ventaCantidadCartones" min="0" value="0" oninput="calcularTotalVenta()">
-          </div>
-          <div style="flex:1;">
-            <label>Monto ($)</label>
-            <input type="number" id="ventaMontoCartones" min="0" value="0" oninput="calcularTotalVenta()">
-          </div>
-        </div>
+        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 2px;">🎟️ Cartones</p>
+        <div id="ventaCartonesList"></div>
 
-        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 6px;">🥤 Bebestibles</p>
+        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 2px;">🥤 Bebestibles</p>
         <div id="ventaBebestiblesList"></div>
 
-        <div class="price-box" style="margin-top:14px;">
-          Total de la venta: <b id="ventaTotalCombo">$0</b>
+        <div class="price-box" style="margin-top:14px; text-align:center; font-size:16px;">
+          Total: <b id="ventaTotalCombo" style="font-size:20px;">$0</b>
         </div>
 
-        <button class="btn btn-primary" onclick="registrarVentaPresencial()">🖨️ Registrar y generar voucher</button>
+        <p style="font-weight:800; font-size:13px; text-transform:uppercase; color:var(--turquesa-dark); margin:16px 0 6px;">Método de pago</p>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-ghost pay-toggle active" data-metodo="efectivo" onclick="setMetodoPago('efectivo')">💵 Efectivo</button>
+          <button type="button" class="btn btn-ghost pay-toggle" data-metodo="transferencia" onclick="setMetodoPago('transferencia')">🏦 Transferencia</button>
+        </div>
+
+        <div id="efectivoQuickRow" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:10px;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setMontoRecibido('exacto')">Exacto</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setMontoRecibido(5000)">$5.000</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setMontoRecibido(10000)">$10.000</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setMontoRecibido(20000)">$20.000</button>
+        </div>
+
+        <div class="price-box" id="vueltoBox" style="display:none; text-align:center; margin-top:10px;">
+          VUELTO<br><b style="font-size:22px;" id="vueltoMonto">$0</b>
+        </div>
+
+        <button class="btn btn-primary" id="registrarVentaBtn" disabled onclick="registrarVentaPresencial()">Selecciona cartones o bebestibles</button>
         <div class="err" id="ventaErr"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h2 style="font-size:16px; margin:0;">🧾 Ventas registradas en caja</h2>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="loadPurchases()">🔄 Refrescar</button>
+        </div>
+        <div id="ventasCajaList" style="margin-top:10px;"><p class="note">Cargando ventas...</p></div>
       </div>
 
       <div class="card" style="margin-bottom:16px;">
@@ -589,8 +609,8 @@
 /* ============ CONFIGURACIÓN ============ */
 // ⚠️ Reemplaza esto con la URL de tu implementación de Apps Script (termina en /exec)
 const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwpqRhCFzeALKDGS7BFRNmyUxetewA3rWy5AbwXuhwiG5dffY4E0KSi_3Y1EqYjQ8mt/exec';
-// Número de WhatsApp del colegio/admin que recibirá la notificación de compra (formato 56969159984)
-const ADMIN_WHATSAPP = '56969159984';
+// Número de WhatsApp del colegio/admin que recibirá la notificación de compra (formato 569XXXXXXXX)
+const ADMIN_WHATSAPP = '569XXXXXXXX';
 
 let purchasesCache = [];
 let currentFilter = 'todas';
@@ -789,7 +809,9 @@ async function adminLogin(){
 async function loadModoAdmin(){
   try{
     const m = await callBackend('getModo', {});
+    currentModo = m.modo;
     renderModoBadge(m.modo);
+    renderCartonesVenta();
   }catch(err){ /* silencioso */ }
 }
 function renderModoBadge(modo){
@@ -804,7 +826,9 @@ async function toggleModo(){
     const nuevo = actual.modo === 'evento' ? 'preventa' : 'evento';
     if(!confirm('¿Cambiar el modo de venta a "'+(nuevo==='evento'?'Día del evento':'Preventa')+'"? Esto afecta el precio de las próximas compras.')) return;
     await callBackend('setModo', {password: adminPassword, modo: nuevo});
+    currentModo = nuevo;
     renderModoBadge(nuevo);
+    renderCartonesVenta();
   }catch(err){
     alert('Error: '+err.message);
   }
@@ -824,6 +848,7 @@ async function loadPurchases(){
     bebestiblesVentasCache = rb.rows;
     updateStats(r);
     renderTable();
+    renderVentasCaja();
   }catch(err){
     alert('Error cargando datos: '+err.message);
   }finally{
@@ -951,13 +976,112 @@ function cambiarQty(id, delta){
   ventaBebestiblesQty[id] = Math.max(0, (ventaBebestiblesQty[id]||0) + delta);
   renderBebestiblesVenta();
 }
+
+/* ============ CARTONES EN LA VENTA PRESENCIAL (por unidad o por set) ============ */
+let unidadesSueltas = 0;
+let setsCount = 0;
+function precioUnitarioCarton(){ return currentModo === 'evento' ? 2000 : 1500; }
+
+function renderCartonesVenta(){
+  const precioUnit = precioUnitarioCarton();
+  const precioSetTxt = setsCount === 2
+    ? '$12.000 pack familia (2 sets)'
+    : '$' + (currentModo==='evento' ? 12000 : 9000).toLocaleString('es-CL') + ' el set (6 cartones)';
+  document.getElementById('ventaCartonesList').innerHTML = `
+    <div class="qty-row">
+      <div>
+        <div class="pname">Cartón por unidad</div>
+        <div class="pprice">$${precioUnit.toLocaleString('es-CL')} c/u</div>
+      </div>
+      <div class="qty-controls">
+        <button type="button" class="qty-btn" onclick="cambiarUnidades(-1)">−</button>
+        <span class="qty-val">${unidadesSueltas}</span>
+        <button type="button" class="qty-btn" onclick="cambiarUnidades(1)">+</button>
+      </div>
+    </div>
+    <div class="qty-row">
+      <div>
+        <div class="pname">Set de 6 cartones</div>
+        <div class="pprice">${precioSetTxt}</div>
+      </div>
+      <div class="qty-controls">
+        <button type="button" class="qty-btn" onclick="cambiarSets(-1)">−</button>
+        <span class="qty-val">${setsCount}</span>
+        <button type="button" class="qty-btn" onclick="cambiarSets(1)">+</button>
+      </div>
+    </div>
+  `;
+  calcularTotalVenta();
+}
+function cambiarUnidades(d){ unidadesSueltas = Math.max(0, unidadesSueltas + d); renderCartonesVenta(); }
+function cambiarSets(d){ setsCount = Math.max(0, setsCount + d); renderCartonesVenta(); }
+
+/* ============ MÉTODO DE PAGO Y VUELTO ============ */
+let metodoPago = 'efectivo';
+let montoRecibido = null;
+function setMetodoPago(m){
+  metodoPago = m;
+  document.querySelectorAll('.pay-toggle').forEach(b=> b.classList.toggle('active', b.dataset.metodo===m));
+  document.getElementById('efectivoQuickRow').style.display = m==='efectivo' ? 'grid' : 'none';
+  if(m !== 'efectivo'){ montoRecibido = null; }
+  calcularTotalVenta();
+}
+function setMontoRecibido(val){
+  const { total } = calcularTotalVenta();
+  montoRecibido = (val === 'exacto') ? total : val;
+  calcularTotalVenta();
+}
+function actualizarVuelto(total){
+  const box = document.getElementById('vueltoBox');
+  if(metodoPago === 'efectivo' && montoRecibido !== null){
+    const vuelto = montoRecibido - total;
+    box.style.display = 'block';
+    document.getElementById('vueltoMonto').textContent = '$'+vuelto.toLocaleString('es-CL');
+    document.getElementById('vueltoMonto').style.color = vuelto < 0 ? 'var(--rech)' : 'var(--ok)';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
 function calcularTotalVenta(){
-  const montoCartones = parseInt(document.getElementById('ventaMontoCartones').value,10) || 0;
+  const precioUnit = precioUnitarioCarton();
+  const montoUnidades = unidadesSueltas * precioUnit;
+  const montoSets = setsCount > 0 ? calcularPrecioLocal(currentModo, setsCount).monto : 0;
+  const montoCartonesTotal = montoUnidades + montoSets;
   let totalBeb = 0;
   productosCache.forEach(p=>{ totalBeb += (ventaBebestiblesQty[p.id]||0) * Number(p.precio); });
-  const total = montoCartones + totalBeb;
+  const total = montoCartonesTotal + totalBeb;
   document.getElementById('ventaTotalCombo').textContent = '$'+total.toLocaleString('es-CL');
-  return { montoCartones, totalBeb, total };
+
+  const btn = document.getElementById('registrarVentaBtn');
+  const haySeleccion = (unidadesSueltas + setsCount) > 0 || totalBeb > 0;
+  btn.disabled = !haySeleccion;
+  btn.textContent = haySeleccion ? '🖨️ Registrar venta e imprimir voucher' : 'Selecciona cartones o bebestibles';
+
+  actualizarVuelto(total);
+  return { montoCartonesTotal, totalBeb, total };
+}
+
+/* ============ VENTAS REGISTRADAS EN CAJA ============ */
+function renderVentasCaja(){
+  const box = document.getElementById('ventasCajaList');
+  const cartonesCaja = purchasesCache.filter(p=>p.modo==='presencial').map(p=>({
+    fecha:p.fecha, comprador:p.comprador, detalle: p.cantidad+' cartones', monto:p.monto, icono:'🎟️'
+  }));
+  const bebCaja = bebestiblesVentasCache.map(b=>({
+    fecha:b.fecha, comprador:b.comprador, detalle:b.items, monto:b.monto, icono:'🥤'
+  }));
+  const todas = cartonesCaja.concat(bebCaja).sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,15);
+  if(!todas.length){ box.innerHTML = '<p class="note">Sin ventas presenciales registradas todavía.</p>'; return; }
+  box.innerHTML = todas.map(v=>`
+    <div class="qty-row">
+      <div>
+        <div class="pname">${v.icono} ${escapeHtml(v.comprador)}</div>
+        <div class="pprice">${escapeHtml(v.detalle)} · ${new Date(v.fecha).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div style="font-weight:800;">$${Number(v.monto).toLocaleString('es-CL')}</div>
+    </div>
+  `).join('');
 }
 
 /* ============ GESTIONAR BEBESTIBLES (precios/catálogo) ============ */
@@ -1012,8 +1136,11 @@ async function registrarVentaPresencial(){
   const errBox = document.getElementById('ventaErr');
   errBox.textContent='';
   const nombre = document.getElementById('ventaNombre').value.trim();
-  const cantidadCartones = document.getElementById('ventaCantidadCartones').value;
-  const montoCartones = document.getElementById('ventaMontoCartones').value;
+  const precioUnit = precioUnitarioCarton();
+  const montoUnidades = unidadesSueltas * precioUnit;
+  const montoSets = setsCount > 0 ? calcularPrecioLocal(currentModo, setsCount).monto : 0;
+  const cantidadCartones = unidadesSueltas + setsCount*6;
+  const montoCartones = montoUnidades + montoSets;
   const bebestiblesItems = productosCache
     .filter(p => (ventaBebestiblesQty[p.id]||0) > 0)
     .map(p => ({ nombre: p.nombre, cantidad: ventaBebestiblesQty[p.id], precioUnit: p.precio }));
@@ -1023,12 +1150,17 @@ async function registrarVentaPresencial(){
       password: adminPassword, nombreComprador: nombre,
       cantidadCartones, montoCartones, bebestiblesItems
     });
+    r.metodoPago = metodoPago;
+    r.montoRecibido = montoRecibido;
+    r.vuelto = (metodoPago==='efectivo' && montoRecibido!==null) ? (montoRecibido - r.montoTotal) : null;
     imprimirVoucherCompleto(r);
+
     document.getElementById('ventaNombre').value='';
-    document.getElementById('ventaCantidadCartones').value=0;
-    document.getElementById('ventaMontoCartones').value=0;
+    unidadesSueltas = 0; setsCount = 0; montoRecibido = null;
     productosCache.forEach(p=> ventaBebestiblesQty[p.id]=0);
+    renderCartonesVenta();
     renderBebestiblesVenta();
+    setMetodoPago('efectivo');
     await loadPurchases();
   }catch(err){
     errBox.textContent = err.message;
@@ -1058,9 +1190,17 @@ function imprimirVoucherCompleto(r){
       <p style="font-size:13px;margin:2px 0;">Monto bebestibles: $${Number(r.bebestibles.monto).toLocaleString('es-CL')}</p>
     `;
   }
+  html += `<hr><p style="font-size:17px;font-weight:bold;">TOTAL: $${Number(r.montoTotal).toLocaleString('es-CL')}</p>`;
+  if(r.metodoPago){
+    html += `<p style="font-size:13px;margin:4px 0;">Pago: <b>${r.metodoPago==='efectivo' ? 'Efectivo' : 'Transferencia'}</b></p>`;
+    if(r.metodoPago==='efectivo' && r.montoRecibido!==null){
+      html += `
+        <p style="font-size:13px;margin:2px 0;">Recibido: $${Number(r.montoRecibido).toLocaleString('es-CL')}</p>
+        <p style="font-size:13px;margin:2px 0;">Vuelto: $${Number(r.vuelto).toLocaleString('es-CL')}</p>
+      `;
+    }
+  }
   html += `
-    <hr>
-    <p style="font-size:17px;font-weight:bold;">TOTAL: $${Number(r.montoTotal).toLocaleString('es-CL')}</p>
     <p style="font-size:11px;margin-top:8px;">Fecha: ${new Date(r.fecha).toLocaleString('es-CL')}</p>
     <hr>
     <p style="font-size:11px;">Conserva este voucher como comprobante${r.cartones ? ' y para retirar tus cartones físicos' : ''}.</p>
